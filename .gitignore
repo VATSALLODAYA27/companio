@@ -1,0 +1,14 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Environments
+.env
+.venv/
+venv/
+node_modules/
+
+# Build artifacts
+dist/
+build/
+*.log
