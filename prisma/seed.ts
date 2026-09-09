@@ -3,8 +3,17 @@
  * user-generated content, so they are safe to seed idempotently.
  */
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
-const prisma = new PrismaClient();
+// Same WASM-engine + driver-adapter construction as PrismaService — see
+// ARCHITECTURE.md "Prisma engine strategy". DATABASE_URL is read
+// directly here (not via ConfigService) since this script runs outside
+// the Nest DI container.
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error('DATABASE_URL is not set');
+}
+const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 
 const ACTIVITIES: Array<{ key: string; label: string }> = [
   { key: 'trekking', label: 'Trekking' },

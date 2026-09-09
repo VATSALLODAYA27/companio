@@ -96,8 +96,15 @@ number never leaves this query.
 
 ## Migrations
 
-Prisma-managed for every standard column; the `geo` column and its
-`GIST` index are added via a hand-authored statement appended to the
-initial migration (Prisma cannot express a GIST index declaratively).
-See the migration file under `prisma/migrations/` once generated against
-a running database (`npm run prisma:migrate`).
+The initial migration (`prisma/migrations/20260909000000_init/`) is
+hand-authored SQL, not `prisma migrate dev` output — it was written to
+mirror `schema.prisma` exactly, including the `geo` column and its
+`GIST` index, which Prisma cannot express declaratively as of this
+schema (`Unsupported("geography(Point, 4326)")`). `npm run
+prisma:migrate` works from here on for anyone with an unrestricted
+network path to Prisma's engine CDN; this prototype was built in a
+network-restricted environment where that wasn't available, so schema
+changes were verified directly against a live database instead (see
+`scripts/*.sql`) — see ARCHITECTURE.md "Prisma engine strategy" for the
+full story and why it doesn't affect the generated Prisma Client used
+at runtime.

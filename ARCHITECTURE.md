@@ -37,7 +37,7 @@ to do that at prototype scale.
 | Frontend | Next.js + TS + Tailwind | Fast mobile-first iteration; no server logic lives here |
 | Backend | NestJS + TS | DI, guards, interceptors, pipes map directly onto the auth/authz/validation requirements |
 | DB | PostgreSQL + PostGIS | Correct radius math (`ST_DWithin` on `geography`) at the database level, not app code |
-| ORM | Prisma | Type-safe for everything except the PostGIS geography column, which is isolated to one raw-SQL repository |
+| ORM | Prisma 7, WASM engine + `@prisma/adapter-pg` | Type-safe for everything except the PostGIS geography column, which is isolated to one raw-SQL repository. See "Prisma engine strategy" below for why the engine choice is called out explicitly. |
 | Cache/session/rate-limit | Redis | One dependency for three needs; also the Socket.IO cross-instance adapter later |
 | Realtime | Socket.IO | Built-in reconnection + room semantics (one room per conversation) |
 | Auth | Google OAuth + first-party opaque session | Revocable without a token blocklist |
@@ -73,6 +73,53 @@ Swapping it for a Kafka producer later is a one-file change — nothing
 else in the codebase imports Kafka directly. This satisfies "Kafka only
 where it provides real benefit" without deploying a broker for a
 prototype with no consumers yet.
+
+## Prisma engine strategy
+
+`schema.prisma`'s generator block sets `engineType = "wasm"`. Concretely:
+the generated Prisma Client runs entirely on the WASM query engine
+bundled inside `@prisma/client` itself, talking to Postgres through
+`@prisma/adapter-pg` (a thin wrapper over `pg`) — `PrismaService`
+constructs that adapter from `DATABASE_URL` and passes it to
+`PrismaClient` explicitly (see `apps/api/src/prisma/prisma.service.ts`).
+There is no native (Rust-compiled) query engine binary anywhere in this
+project.
+
+This is deliberate, not incidental. The project was built in a
+network-restricted sandbox that could reach `registry.npmjs.org` but not
+Prisma's binary CDN (`binaries.prisma.sh`) — the host every native engine
+binary is fetched from, for `generate`, `migrate`, and normal runtime
+query execution alike. That blocked `prisma generate` outright: even
+`prisma validate`, which resolves the schema entirely through a
+WASM parser, still ran an unconditional preflight step that tried (and
+failed) to resolve a native `schema-engine` binary before doing anything
+schema-specific. Prisma 5.20 (this project's original pin) can produce a
+WASM *query* engine, but `generate` itself still required a native
+`libquery-engine` at generate-time in that version. Prisma 7's fully
+WASM-first pipeline (`getConfig`/`validate`/DMMF all run through
+`@prisma/prisma-schema-wasm`, and the generated client itself needs no
+native binary when `engineType = "wasm"` + a driver adapter are used)
+was the first version where the whole path — schema parsing *and* the
+generated client's runtime query engine — could avoid the native binary
+entirely, given an npm-registry-only network path.
+
+Practical effect: `prisma generate` still runs one preflight check that
+tries to resolve a `schema-engine` binary before it gets to the (fully
+WASM) real work, even though nothing that follows in `generate` actually
+executes it. On an unrestricted network this preflight just succeeds
+silently. On a network that blocks `binaries.prisma.sh` specifically,
+point `PRISMA_SCHEMA_ENGINE_BINARY` at any existing, executable file —
+it only needs to resolve a path, never actually run it, for `generate`
+in WASM mode. This is **not** needed on a normal developer machine, CI
+runner, or production environment — leave it unset there and `prisma
+generate` (and `prisma migrate`, `prisma studio`, which *do* need a real
+schema engine) will fetch the real binary normally.
+
+`prisma migrate`/`prisma studio` still need a genuine native
+schema-engine binary (they do real migration diffing/introspection, not
+just client generation) and are unaffected by any of this on an
+unrestricted network — this project doesn't rely on them regardless,
+since its migrations are hand-authored SQL (see DATABASE.md).
 
 ## Scale-up path
 

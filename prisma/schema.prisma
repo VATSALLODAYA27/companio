@@ -9,14 +9,24 @@
 //   logic that reads/writes this column through the generated client.
 // - No location history table by design — UserLocation is upserted in place.
 // - Verification stores only provider/status/timestamp — never raw KYC data.
+//
+// Engine (Phase 3.5): `engineType = "wasm"` — the generated client runs
+// entirely on the bundled WASM query engine plus a driver adapter
+// (@prisma/adapter-pg), never a native engine binary. See ARCHITECTURE.md
+// "Prisma engine strategy" for why. The connection string lives in
+// PrismaService (constructed from DATABASE_URL via ConfigService), not in
+// this datasource block — Prisma 7 no longer reads `url` from the schema
+// for the generated client (prisma.config.ts supplies it to the CLI only,
+// for `generate`/`migrate`/`studio`).
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  engineType      = "wasm"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider   = "postgresql"
-  url        = env("DATABASE_URL")
   extensions = [postgis]
 }
 

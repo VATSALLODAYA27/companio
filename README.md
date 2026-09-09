@@ -58,7 +58,7 @@ cp .env.example .env
 docker compose up -d
 
 # 4. Generate the Prisma client and apply the schema
-npm run prisma:generate
+npm run prisma:generate  # WASM engine — see ARCHITECTURE.md "Prisma engine strategy"
 npm run prisma:migrate   # creates the database tables, prompts for a migration name
 npm run prisma:seed      # loads the fixed activity list (Trekking, Bowling, ...)
 
