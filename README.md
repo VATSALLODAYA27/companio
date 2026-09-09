@@ -6,9 +6,20 @@ accounts, AI recommendations, events, or tourism features.
 
 ## Status
 
-**Phase 1 complete:** project scaffold, database schema, and security
-model. Login, activity selection, and nearby discovery are not
-implemented yet — see `ARCHITECTURE.md` for the phase plan.
+**Phases 1–2 complete:** project scaffold, database schema, security
+model, and authentication (Google OAuth + email/password, sessions,
+CSRF, rate limiting). Profile editing, activity selection, and nearby
+discovery are not implemented yet — see `ARCHITECTURE.md` for the phase
+plan.
+
+**Everything works with free-tier tools only.** Email/password login
+needs no external setup at all. Google OAuth needs a client ID/secret
+from [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+(free — no billing account required, just create an "OAuth client ID" of
+type "Web application" with `http://localhost:4000/api/v1/auth/google/callback`
+as an authorized redirect URI). Until you add those to `.env`, `/auth/google`
+simply won't work — every other route, including email/password signup and
+login, works immediately.
 
 ## Stack
 
@@ -70,7 +81,24 @@ screen confirming the scaffold booted.
 
 ```bash
 npm run test          # unit tests (apps/api)
-npm run test:e2e       # end-to-end tests (apps/api), requires the dev DB running
+npm run test:e2e       # end-to-end tests (apps/api) — these mock Prisma, no DB needed
+```
+
+## Manually testing auth once it's running
+
+```bash
+# Register (sets a session cookie in cookies.txt)
+curl -i -c cookies.txt -X POST http://localhost:4000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"correcthorse1","firstName":"You"}'
+
+# Confirm the session is recognized
+curl -i -b cookies.txt http://localhost:4000/api/v1/auth/session
+
+# Get a CSRF token, then log out (logout requires both the session cookie and a matching CSRF token)
+curl -s -c cookies.txt -b cookies.txt http://localhost:4000/api/v1/auth/csrf
+CSRF_TOKEN=$(curl -s -b cookies.txt http://localhost:4000/api/v1/auth/csrf | python3 -c "import sys,json;print(json.load(sys.stdin)['csrfToken'])")
+curl -i -b cookies.txt -X POST http://localhost:4000/api/v1/auth/logout -H "X-CSRF-Token: $CSRF_TOKEN"
 ```
 
 ## Documentation index

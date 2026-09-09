@@ -77,7 +77,7 @@ version of this with concrete numbers from load testing.
 ## Phase status
 
 - [x] Phase 1 — project scaffold, database schema, security model
-- [ ] Phase 2 — authentication
+- [x] Phase 2 — authentication (Google OAuth + email/password, sessions, CSRF, rate limiting)
 - [ ] Phase 3 — profile + activities
 - [ ] Phase 4 — location + 1 km matching
 - [ ] Phase 5 — connection requests

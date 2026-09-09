@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
@@ -13,13 +14,15 @@ async function bootstrap() {
     logger: ['error', 'warn', 'log'],
   });
 
-  const configService = app.get('ConfigService') as {
-    get: (key: string) => string | undefined;
-  };
+  const configService = app.get(ConfigService);
 
   // Security headers
   app.use(helmet());
-  app.use(cookieParser());
+  // Cookies are signed with SESSION_SECRET so a tampered session/CSRF
+  // cookie value is rejected before it ever reaches a guard — the real
+  // authorization check is still the server-side session lookup, this
+  // is defense in depth on top of it.
+  app.use(cookieParser(configService.get<string>('SESSION_SECRET')));
 
   // Global input validation — reject unknown/invalid fields on every route
   app.useGlobalPipes(
