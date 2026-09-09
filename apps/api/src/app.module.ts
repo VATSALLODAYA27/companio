@@ -9,6 +9,8 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ActivitiesModule } from './activities/activities.module';
 import { ProfileModule } from './profile/profile.module';
+import { LocationModule } from './location/location.module';
+import { DiscoveryModule } from './discovery/discovery.module';
 
 @Module({
   imports: [
@@ -42,6 +44,8 @@ import { ProfileModule } from './profile/profile.module';
     UsersModule,
     ActivitiesModule,
     ProfileModule,
+    LocationModule,
+    DiscoveryModule,
   ],
   providers: [
     // Registers ThrottlerGuard as a global guard so @Throttle() overrides

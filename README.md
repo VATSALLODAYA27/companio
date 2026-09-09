@@ -6,11 +6,13 @@ accounts, AI recommendations, events, or tourism features.
 
 ## Status
 
-**Phases 1–3 complete:** project scaffold, database schema, security
+**Phases 1–4 complete:** project scaffold, database schema, security
 model, authentication (Google OAuth + email/password, sessions, CSRF,
-rate limiting), and profile CRUD + activity selection + verification
-badge display. Nearby discovery, connections, chat, and the map are not
-implemented yet — see `ARCHITECTURE.md` for the phase plan.
+rate limiting), profile CRUD + activity selection + verification badge
+display, and location + nearby discovery (1 km default radius, one
+indexed PostGIS query, distance shown only as a bucketed label — see
+`DATABASE.md`). Connections, chat, and the map are not implemented yet —
+see `ARCHITECTURE.md` for the phase plan.
 
 **Everything works with free-tier tools only.** Email/password login
 needs no external setup at all. Google OAuth needs a client ID/secret
@@ -122,6 +124,27 @@ curl -i -b cookies.txt -X PUT http://localhost:4000/api/v1/profile/me/activities
   -d '{"activities":[{"activityKey":"hiking","availability":"WEEKEND"},{"activityKey":"gym","availability":"NOW"}]}'
 
 curl -s -b cookies.txt http://localhost:4000/api/v1/profile/me/activities
+```
+
+## Manually testing location + discovery once you're logged in
+
+```bash
+CSRF_TOKEN=$(curl -s -c cookies.txt -b cookies.txt http://localhost:4000/api/v1/auth/csrf | python3 -c "import sys,json;print(json.load(sys.stdin)['csrfToken'])")
+
+# Set your own location (upserts your user_locations row)
+curl -i -b cookies.txt -X PUT http://localhost:4000/api/v1/location/me \
+  -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF_TOKEN" \
+  -d '{"latitude":19.1728,"longitude":72.9425}'
+
+# Search for people nearby doing the same activity (needs another
+# discoverable, non-hidden user with a location + matching activity to
+# return anything — see scripts/phase4-discovery-check.sql for a full
+# multi-user fixture)
+curl -s -b cookies.txt "http://localhost:4000/api/v1/discovery/nearby?activityKey=trekking&radiusMeters=1000"
+
+# 400 once you clear your own location — you can't search without one
+curl -i -b cookies.txt -X DELETE http://localhost:4000/api/v1/location/me -H "X-CSRF-Token: $CSRF_TOKEN"
+curl -i -b cookies.txt "http://localhost:4000/api/v1/discovery/nearby?activityKey=trekking"
 ```
 
 ## Documentation index

@@ -55,8 +55,34 @@ distance-bucketed) is Discovery's job starting Phase 4, not this module's.
 | GET | `/profile/me/activities` | yes | The caller's own selected activities: `[{ activityKey, label, availability }]`. |
 | PUT | `/profile/me/activities` | yes + CSRF | Replace-all: body `{ activities: [{ activityKey, availability }] }` becomes the caller's complete activity set — anything not listed is removed. `activityKey` must be one of the 12 fixed keys; duplicate keys in one request are a 400. `availability` is one of `NOW \| TODAY \| WEEKEND \| NOT_AVAILABLE`. |
 
+## Location (Phase 4)
+
+| Method | Path | Auth required | Notes |
+|---|---|---|---|
+| PUT | `/location/me` | yes + CSRF | Body: `{ latitude, longitude }` (validated as real lat/lng ranges). Upserts the caller's own location — `userId` always comes from the session, never from the body. Written through raw SQL only (the geography column has no Prisma-native type); a privacy-safe geohash6 (~1.2km cell) is stored alongside it for future use. Returns `{ updated: true }`. |
+| DELETE | `/location/me` | yes + CSRF | Clears the caller's own location row. Once cleared, the caller drops out of everyone else's discovery results and `GET /discovery/nearby` returns 400 for the caller until they set a location again. Returns `{ cleared: true }`. |
+
+No endpoint ever accepts another user's id here, and there is no route
+that reads a location back as raw coordinates — the only consumer of
+`user_locations.geo` is the discovery repository below, and even it never
+projects a raw coordinate into a response (see SECURITY.md §5).
+
+## Discovery (Phase 4)
+
+| Method | Path | Auth required | Notes |
+|---|---|---|---|
+| GET | `/discovery/nearby` | yes | Query params: `activityKey` (required, one of the 12 fixed keys), `radiusMeters` (optional, one of `1000 \| 3000 \| 5000 \| 10000 \| 25000 \| 50000`, defaults to `DEFAULT_SEARCH_RADIUS_METERS`), `offset` (optional, `>= 0`, defaults to `0`, page size fixed at 20). 400 if the caller hasn't set a location yet (`PUT /location/me` first). Rate-limited separately from the platform default (`RATE_LIMIT_MAX_DISCOVERY`, default 20/min) since this is the most query-heavy route in the app. |
+
+**Response shape:** `{ results: [{ userId, firstName, photoUrl, ageRange, verificationBadge, activityKey, availability, distanceLabel }] }`. There is no `distanceLabel` finer than `"< 250 m"` and no raw distance in meters anywhere in the payload — distance is bucketed entirely inside the SQL query before the row is even fetched into the API process (see DATABASE.md "The nearby-match query"). `availability` is never `NOT_AVAILABLE` here — matching Availability is excluded by the query itself, not filtered afterward.
+
+**Origin point:** the caller's own saved location, read once per query from their own `user_locations` row — a client can never pass an arbitrary lat/lng to search *from*, only the radius and activity to search *with*.
+
+**Exclusions applied inside the single query, not afterward in application code:** the caller themselves; users who don't have `discoverable = true` and `hidden = false`; users with `status != ACTIVE`; anyone the caller has blocked or who has blocked the caller (checked both directions); anyone outside the requested radius; anyone not selecting the requested activity with an availability other than `NOT_AVAILABLE`.
+
+**Ordering:** `NOW` availability first, then ascending distance.
+
 ## Not yet implemented
 
-Nearby discovery, connections, chat, map, block/report, and admin
-endpoints land in Phases 4–8 and will be documented here as each ships —
-see `ARCHITECTURE.md` for the phase list and status.
+Connections, chat, map, block/report, and admin endpoints land in Phases
+5–8 and will be documented here as each ships — see `ARCHITECTURE.md` for
+the phase list and status.

@@ -63,36 +63,71 @@ document explains the *decisions*, not a duplicate listing.
 ## The nearby-match query
 
 Discovery must never fetch every user and filter in application code
-(explicitly disallowed by the product spec). The real query — implemented
-as a single `$queryRaw` in `discovery.repository.ts` in Phase 4 — performs
-activity match, availability match, discovery/privacy opt-in, block
-exclusion, and the 1 km geospatial radius **in one indexed pass**:
+(explicitly disallowed by the product spec). The real query — a single
+`$queryRaw` in `apps/api/src/discovery/discovery.repository.ts` (Phase 4)
+— performs activity match, availability match, discovery/privacy opt-in,
+block exclusion, and the geospatial radius **in one indexed pass**. The
+caller's own coordinates are never passed in from the request; they are
+read once per query, from the caller's own `user_locations` row, via a
+`me` CTE:
 
 ```sql
-SELECT u.id, p.first_name, p.photo_url, v.status AS verification_status,
-       ua.availability,
-       ST_Distance(ul.geo, ST_MakePoint($lng, $lat)::geography) AS distance_m
-FROM "user_activities" ua
-JOIN "users" u ON u.id = ua."userId"
-JOIN "profiles" p ON p."userId" = u.id
-JOIN "user_locations" ul ON ul."userId" = u.id
-LEFT JOIN "verifications" v ON v."userId" = u.id AND v.status = 'VERIFIED'
-WHERE ua."activityId" = $activityId
-  AND ua.availability != 'NOT_AVAILABLE'
-  AND p.discoverable = true AND p.hidden = false
-  AND u.status = 'ACTIVE' AND u.id != $currentUserId
-  AND u.id NOT IN (
-    SELECT "blockedId" FROM "blocks" WHERE "blockerId" = $currentUserId
-    UNION SELECT "blockerId" FROM "blocks" WHERE "blockedId" = $currentUserId
-  )
-  AND ST_DWithin(ul.geo, ST_MakePoint($lng, $lat)::geography, $radiusMeters)
-ORDER BY (ua.availability = 'NOW') DESC, distance_m ASC
+WITH me AS (
+  SELECT geo FROM "user_locations" WHERE "userId" = $currentUserId::uuid
+),
+candidates AS (
+  SELECT
+    u.id AS "userId", p."firstName", p."photoUrl", p."ageRange",
+    ua.availability::text AS availability,
+    EXISTS (
+      SELECT 1 FROM "verifications" v
+      WHERE v."userId" = u.id AND v.status = 'VERIFIED'
+    ) AS verified,
+    ST_Distance(ul.geo, (SELECT geo FROM me)) AS distance_m
+  FROM "user_activities" ua
+  JOIN "users" u ON u.id = ua."userId"
+  JOIN "profiles" p ON p."userId" = u.id
+  JOIN "user_locations" ul ON ul."userId" = u.id
+  WHERE ua."activityId" = $activityId::uuid
+    AND ua.availability != 'NOT_AVAILABLE'
+    AND p.discoverable = true AND p.hidden = false
+    AND u.status = 'ACTIVE'
+    AND u.id != $currentUserId::uuid
+    AND EXISTS (SELECT 1 FROM me)   -- caller has no location -> zero rows, not an error
+    AND u.id NOT IN (
+      SELECT "blockedId" FROM "blocks" WHERE "blockerId" = $currentUserId::uuid
+      UNION
+      SELECT "blockerId" FROM "blocks" WHERE "blockedId" = $currentUserId::uuid
+    )
+    AND ST_DWithin(ul.geo, (SELECT geo FROM me), $radiusMeters)
+)
+SELECT
+  "userId", "firstName", "photoUrl", "ageRange", availability, verified,
+  CASE
+    WHEN distance_m < 250 THEN '< 250 m'
+    WHEN distance_m < 500 THEN '250-500 m'
+    WHEN distance_m < 1000 THEN '500 m-1 km'
+    WHEN distance_m < 3000 THEN '1-3 km'
+    WHEN distance_m < 5000 THEN '3-5 km'
+    WHEN distance_m < 10000 THEN '5-10 km'
+    WHEN distance_m < 25000 THEN '10-25 km'
+    ELSE '25-50 km'
+  END AS "distanceLabel"
+FROM candidates
+ORDER BY (availability = 'NOW') DESC, distance_m ASC
 LIMIT $pageSize OFFSET $offset;
 ```
 
-`distance_m` is computed server-side and converted to a bucketed label
-(§5 of SECURITY.md) before it ever reaches an API response — the raw
-number never leaves this query.
+`distance_m` is computed in the `candidates` CTE and used only in
+`ORDER BY` and the bucketing `CASE` expression — it is never in the outer
+`SELECT` list, so the raw figure literally cannot be projected into a
+returned row by accident; only the bucketed `distanceLabel` (§5 of
+SECURITY.md) reaches the API response. Verified against a live database
+in `scripts/phase4-discovery-check.sql`, including confirming
+`EXPLAIN` shows an `Index Scan` on the `GIST(geo)` index (not a
+sequential scan) even with the `me` self-join in place, and that a
+caller with no `user_locations` row gets zero rows rather than an error
+or "everyone."
 
 ## Migrations
 

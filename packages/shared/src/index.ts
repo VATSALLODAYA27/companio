@@ -68,3 +68,22 @@ export type DistanceLabel =
   | '5-10 km'
   | '10-25 km'
   | '25-50 km';
+
+// The only radii the discovery search accepts (1/3/5/10/25/50 km) — a
+// fixed set, not an arbitrary client-supplied number, so a request can
+// never be used to probe an unbounded area.
+export const SEARCH_RADIUS_METERS_VALUES = [1000, 3000, 5000, 10000, 25000, 50000] as const;
+export type SearchRadiusMeters = (typeof SEARCH_RADIUS_METERS_VALUES)[number];
+
+// What discovery ever reveals about another user — no id-linkable exact
+// location, no raw distance, no email, no internal fields.
+export interface NearbyCompanion {
+  userId: string;
+  firstName: string;
+  photoUrl: string | null;
+  ageRange: AgeRange | null;
+  verificationBadge: VerificationBadge;
+  activityKey: ActivityKey;
+  availability: Exclude<Availability, 'NOT_AVAILABLE'>;
+  distanceLabel: DistanceLabel;
+}

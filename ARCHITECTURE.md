@@ -51,7 +51,9 @@ to do that at prototype scale.
 - `identity-verification/` — the `IdentityVerificationProvider` abstraction, `VerificationsService` (owns the Verification table), and the badge computation every profile view reads. Its own module (`IdentityVerificationModule`) so both `AuthModule` (records a verification at login) and `ProfileModule` (displays the badge) can import it without depending on each other.
 - `activities/` — read-only access to the fixed 12-activity list seeded by `prisma/seed.ts`. No user data.
 - `profile/` — profile CRUD and activity selection (Phase 3), scoped entirely to the caller's own `userId` from the session — no route in this module accepts another user's id as input.
-- Modules added in later phases follow this same pattern: `*.module.ts`, `*.controller.ts`, `*.service.ts`, `dto/*.ts`, and — where the module owns a non-trivial query — a dedicated `*.repository.ts` (this is where `discovery`'s raw PostGIS query will live in Phase 4).
+- `location/` — owns `user_locations`, the caller's own row only (Phase 4). Every write goes through raw SQL — `PrismaService` has no generated-client type for the `geography` column — and reads back nothing beyond an existence check (`hasLocation`, used by `DiscoveryService` to give a clear 400 before searching rather than a query that silently returns zero rows). No route or method in this module ever accepts or returns another user's coordinates.
+- `discovery/` — the only module that queries across users' locations (Phase 4). Its `DiscoveryRepository` is the sole place `user_locations.geo` is read for anyone other than its owner, entirely inside one `$queryRaw` (see DATABASE.md "The nearby-match query"). `DiscoveryService` resolves the requested `activityKey` to an id (via `ActivitiesModule`) and confirms the caller has a location (via `LocationModule`) before ever calling the repository, then maps the repository's rows to the public response shape — `verified: boolean` becomes `verificationBadge`, and no raw `distance_m` field exists past the repository layer at all (the repository's SQL never even projects it — see the repository's own docblock).
+- Modules added in later phases follow this same pattern: `*.module.ts`, `*.controller.ts`, `*.service.ts`, `dto/*.ts`, and — where the module owns a non-trivial query — a dedicated `*.repository.ts`.
 
 ### Avoiding circular modules
 
@@ -141,7 +143,7 @@ version of this with concrete numbers from load testing.
 - [x] Phase 1 — project scaffold, database schema, security model
 - [x] Phase 2 — authentication (Google OAuth + email/password, sessions, CSRF, rate limiting)
 - [x] Phase 3 — profile + activities
-- [ ] Phase 4 — location + 1 km matching
+- [x] Phase 4 — location + 1 km matching
 - [ ] Phase 5 — connection requests
 - [ ] Phase 6 — chat
 - [ ] Phase 7 — map
