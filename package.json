@@ -1,0 +1,30 @@
+{
+  "name": "companio",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Companio prototype — find a verified person nearby who wants to do the same activity.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run start:dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=packages/shared && npm run build --workspace=apps/api && npm run build --workspace=apps/web",
+    "build:api": "npm run build --workspace=apps/api",
+    "build:web": "npm run build --workspace=apps/web",
+    "test": "npm run test --workspace=apps/api",
+    "test:e2e": "npm run test:e2e --workspace=apps/api",
+    "lint": "npm run lint --workspace=apps/api && npm run lint --workspace=apps/web",
+    "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
+    "prisma:validate": "prisma validate --schema=prisma/schema.prisma",
+    "prisma:migrate": "prisma migrate dev --schema=prisma/schema.prisma",
+    "prisma:studio": "prisma studio --schema=prisma/schema.prisma",
+    "prisma:seed": "ts-node --transpile-only prisma/seed.ts"
+  },
+  "devDependencies": {
+    "prisma": "^5.20.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  }
+}

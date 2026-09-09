@@ -1,0 +1,38 @@
+# Companio — local development stack (Phase 1)
+#
+# Brings up only the stateful services (Postgres+PostGIS, Redis). The API
+# and web app run directly with `npm run dev:*` during development for
+# fast reload; Dockerfiles for api/web are added in the deployment phase
+# once there is a real build to containerize.
+
+services:
+  db:
+    image: postgis/postgis:16-3.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: companio
+      POSTGRES_PASSWORD: companio_dev_password
+      POSTGRES_DB: companio
+    ports:
+      - '5432:5432'
+    volumes:
+      - companio_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U companio -d companio']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  companio_db_data:
