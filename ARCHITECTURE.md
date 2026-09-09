@@ -47,7 +47,22 @@ to do that at prototype scale.
 - `prisma/` — the only place the Prisma client is instantiated (`PrismaService`, injected everywhere else).
 - `health/` — public liveness/readiness endpoint, no auth required.
 - `common/filters` — global exception sanitization (see SECURITY.md §9).
+- `common/guards`, `common/decorators` — `SessionAuthGuard`, `CsrfGuard`, `@CurrentUser()` — deliberately outside `auth/` so any module can depend on them without creating a cycle back into `AuthModule` (see "Avoiding circular modules" below).
+- `identity-verification/` — the `IdentityVerificationProvider` abstraction, `VerificationsService` (owns the Verification table), and the badge computation every profile view reads. Its own module (`IdentityVerificationModule`) so both `AuthModule` (records a verification at login) and `ProfileModule` (displays the badge) can import it without depending on each other.
+- `activities/` — read-only access to the fixed 12-activity list seeded by `prisma/seed.ts`. No user data.
+- `profile/` — profile CRUD and activity selection (Phase 3), scoped entirely to the caller's own `userId` from the session — no route in this module accepts another user's id as input.
 - Modules added in later phases follow this same pattern: `*.module.ts`, `*.controller.ts`, `*.service.ts`, `dto/*.ts`, and — where the module owns a non-trivial query — a dedicated `*.repository.ts` (this is where `discovery`'s raw PostGIS query will live in Phase 4).
+
+### Avoiding circular modules
+
+`AuthModule` depends on `UsersModule` (for `UsersService`) and on
+`IdentityVerificationModule` (to record a Google verification at login).
+`ProfileModule` also depends on `IdentityVerificationModule` (to read the
+badge) and on `ActivitiesModule` (to resolve activity keys). None of
+these ever import `AuthModule` back — `SessionAuthGuard`/`CsrfGuard`
+living in `common/` rather than `auth/` is what makes that possible, since
+otherwise any module needing auth would have to import `AuthModule`,
+which itself imports `UsersModule`, which would need the guard.
 
 ## Event layer (Kafka readiness without Kafka in the loop yet)
 
@@ -78,7 +93,7 @@ version of this with concrete numbers from load testing.
 
 - [x] Phase 1 — project scaffold, database schema, security model
 - [x] Phase 2 — authentication (Google OAuth + email/password, sessions, CSRF, rate limiting)
-- [ ] Phase 3 — profile + activities
+- [x] Phase 3 — profile + activities
 - [ ] Phase 4 — location + 1 km matching
 - [ ] Phase 5 — connection requests
 - [ ] Phase 6 — chat

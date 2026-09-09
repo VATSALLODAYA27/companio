@@ -6,11 +6,11 @@ accounts, AI recommendations, events, or tourism features.
 
 ## Status
 
-**Phases 1–2 complete:** project scaffold, database schema, security
-model, and authentication (Google OAuth + email/password, sessions,
-CSRF, rate limiting). Profile editing, activity selection, and nearby
-discovery are not implemented yet — see `ARCHITECTURE.md` for the phase
-plan.
+**Phases 1–3 complete:** project scaffold, database schema, security
+model, authentication (Google OAuth + email/password, sessions, CSRF,
+rate limiting), and profile CRUD + activity selection + verification
+badge display. Nearby discovery, connections, chat, and the map are not
+implemented yet — see `ARCHITECTURE.md` for the phase plan.
 
 **Everything works with free-tier tools only.** Email/password login
 needs no external setup at all. Google OAuth needs a client ID/secret
@@ -99,6 +99,29 @@ curl -i -b cookies.txt http://localhost:4000/api/v1/auth/session
 curl -s -c cookies.txt -b cookies.txt http://localhost:4000/api/v1/auth/csrf
 CSRF_TOKEN=$(curl -s -b cookies.txt http://localhost:4000/api/v1/auth/csrf | python3 -c "import sys,json;print(json.load(sys.stdin)['csrfToken'])")
 curl -i -b cookies.txt -X POST http://localhost:4000/api/v1/auth/logout -H "X-CSRF-Token: $CSRF_TOKEN"
+```
+
+## Manually testing profile + activities once you're logged in
+
+```bash
+# Public — the fixed activity list, no auth needed
+curl -s http://localhost:4000/api/v1/activities
+
+# 404 until you PUT a profile at least once
+curl -i -b cookies.txt http://localhost:4000/api/v1/profile/me
+
+# CSRF token is required for every mutating request from here on
+CSRF_TOKEN=$(curl -s -c cookies.txt -b cookies.txt http://localhost:4000/api/v1/auth/csrf | python3 -c "import sys,json;print(json.load(sys.stdin)['csrfToken'])")
+
+curl -i -b cookies.txt -X PUT http://localhost:4000/api/v1/profile/me \
+  -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF_TOKEN" \
+  -d '{"firstName":"Nia","ageRange":"25-34","bio":"Weekend hiker","languages":["English"]}'
+
+curl -i -b cookies.txt -X PUT http://localhost:4000/api/v1/profile/me/activities \
+  -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF_TOKEN" \
+  -d '{"activities":[{"activityKey":"hiking","availability":"WEEKEND"},{"activityKey":"gym","availability":"NOW"}]}'
+
+curl -s -b cookies.txt http://localhost:4000/api/v1/profile/me/activities
 ```
 
 ## Documentation index

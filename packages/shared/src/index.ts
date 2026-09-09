@@ -22,7 +22,41 @@ export type ActivityKey = (typeof ACTIVITY_KEYS)[number];
 
 export type Availability = 'NOW' | 'TODAY' | 'WEEKEND' | 'NOT_AVAILABLE';
 
+export const AVAILABILITY_VALUES = [
+  'NOW',
+  'TODAY',
+  'WEEKEND',
+  'NOT_AVAILABLE',
+] as const;
+
+// Bucketed age ranges only — the product never stores or displays an
+// exact date of birth or age (see SECURITY.md "Data minimization").
+export const AGE_RANGE_VALUES = ['18-24', '25-34', '35-44', '45-54', '55+'] as const;
+export type AgeRange = (typeof AGE_RANGE_VALUES)[number];
+
 export type VerificationStatus = 'PENDING' | 'VERIFIED' | 'FAILED' | 'EXPIRED';
+
+/** What a profile actually shows about verification — never the raw provider rows. */
+export type VerificationBadge = 'GOOGLE_VERIFIED' | 'NONE';
+
+export interface ProfileView {
+  firstName: string;
+  photoUrl: string | null;
+  ageRange: AgeRange | null;
+  bio: string | null;
+  city: string | null;
+  languages: string[];
+  discoverable: boolean;
+  hidden: boolean;
+  verificationBadge: VerificationBadge;
+  updatedAt: string;
+}
+
+export interface ActivitySelection {
+  activityKey: ActivityKey;
+  label: string;
+  availability: Availability;
+}
 
 /** Distance is always a bucketed label, never raw meters from another user. */
 export type DistanceLabel =

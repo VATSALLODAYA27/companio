@@ -32,8 +32,31 @@ All endpoints return JSON. Errors follow the shape:
 
 | Method | Path | Auth required | Notes |
 |---|---|---|---|
-| GET | `/users/me` | yes | Returns `{ id, email, status, createdAt }` only — no `passwordHash`, `googleId`, or internal fields. Full profile fields (photo, bio, activities, ...) arrive in Phase 3. |
+| GET | `/users/me` | yes | Returns `{ id, email, status, createdAt }` only — no `passwordHash`, `googleId`, or internal fields. |
+
+## Activities (Phase 3)
+
+| Method | Path | Auth required | Notes |
+|---|---|---|---|
+| GET | `/activities` | no | Public reference data — the fixed 12-activity list (`{ activities: [{ key, label }] }`). Nothing user-specific, so no auth is required. |
+
+## Profile (Phase 3)
+
+Every route below is the caller's **own** profile only — every handler
+reads `userId` from the session (`@CurrentUser()`), never from a request
+parameter, so there is no field a client can set to read or write
+someone else's profile. Viewing *other* users' profiles (privacy-filtered,
+distance-bucketed) is Discovery's job starting Phase 4, not this module's.
+
+| Method | Path | Auth required | Notes |
+|---|---|---|---|
+| GET | `/profile/me` | yes | 404 if the profile hasn't been created yet (first-run signal for onboarding). Returns `{ firstName, photoUrl, ageRange, bio, city, languages, discoverable, hidden, verificationBadge, updatedAt }`. `ageRange` is always a bucket (e.g. `"25-34"`) — never a date of birth or exact age. `verificationBadge` is `"GOOGLE_VERIFIED"` or `"NONE"`, computed from the Verification table — the raw provider/status rows never leave the server. |
+| PUT | `/profile/me` | yes + CSRF | Upserts the caller's profile. Body: `{ firstName, photoUrl?, ageRange?, bio?, city?, languages?, discoverable?, hidden? }`. `photoUrl` must be `https://...` (rejects `javascript:`/`data:` etc). `ageRange` must be one of the fixed buckets — anything else is a 400. Unknown fields in the body are a 400 (`forbidNonWhitelisted`), not silently dropped. |
+| GET | `/profile/me/activities` | yes | The caller's own selected activities: `[{ activityKey, label, availability }]`. |
+| PUT | `/profile/me/activities` | yes + CSRF | Replace-all: body `{ activities: [{ activityKey, availability }] }` becomes the caller's complete activity set — anything not listed is removed. `activityKey` must be one of the 12 fixed keys; duplicate keys in one request are a 400. `availability` is one of `NOW \| TODAY \| WEEKEND \| NOT_AVAILABLE`. |
 
 ## Not yet implemented
 
-Profile editing, activity selection, nearby discovery, connections, chat, map, block/report, and admin endpoints land in Phases 3–8 and will be documented here as each ships — see `ARCHITECTURE.md` for the phase list and status.
+Nearby discovery, connections, chat, map, block/report, and admin
+endpoints land in Phases 4–8 and will be documented here as each ships —
+see `ARCHITECTURE.md` for the phase list and status.
