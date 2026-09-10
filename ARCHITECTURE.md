@@ -167,6 +167,6 @@ version of this with concrete numbers from load testing.
 - [x] Phase 6 — chat (REST persistence + Socket.IO live push)
 - [x] Phase 7 — map (fuzzed positions, ~150 m, deterministic per viewer/target/day)
 - [x] Phase 8 — safety / privacy (block/report, block creation ends active connections + declines pending requests)
-- [ ] Phase 9 — testing
+- [x] Phase 9 — testing (cross-cutting coverage audit, authorization test matrix, full live-DB regression pass — see TESTING.md)
 - [ ] Phase 10 — load testing
 - [ ] Phase 11 — deployment

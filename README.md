@@ -6,7 +6,7 @@ accounts, AI recommendations, events, or tourism features.
 
 ## Status
 
-**Phases 1–8 complete:** project scaffold, database schema, security
+**Phases 1–9 complete:** project scaffold, database schema, security
 model, authentication (Google OAuth + email/password, sessions, CSRF,
 rate limiting), profile CRUD + activity selection + verification badge
 display, location + nearby discovery (1 km default radius, one indexed
@@ -21,8 +21,14 @@ that's always randomized within ~150 m and never the real coordinate
 (see `API.md` "Map") — and safety/privacy: block and report (`/safety/*`),
 where creating a block proactively ends any active connection and
 declines any pending connection request between the pair, not just a
-flag other endpoints have to separately check (see `API.md` "Safety").
-See `ARCHITECTURE.md` for the remaining phase plan.
+flag other endpoints have to separately check (see `API.md` "Safety") —
+and Phase 9's project-wide testing audit, which closed three
+cross-cutting coverage gaps (the global exception filter, `UsersService`,
+and the identity-verification module all had no dedicated tests before
+this phase, even though the code itself shipped earlier) and re-ran
+every phase's live-database verification script as a single regression
+pass with zero failures (see `TESTING.md`). See `ARCHITECTURE.md` for
+the remaining phase plan.
 
 **Everything works with free-tier tools only.** Email/password login
 needs no external setup at all. Google OAuth needs a client ID/secret
@@ -95,6 +101,12 @@ screen confirming the scaffold booted.
 npm run test          # unit tests (apps/api)
 npm run test:e2e       # end-to-end tests (apps/api) — these mock Prisma, no DB needed
 ```
+
+161 unit tests, 88 e2e tests as of Phase 9. See `TESTING.md` for the
+full strategy (four layers: unit, e2e, live-database SQL scripts, and
+real-HTTP boot verification — and why each catches bugs the others
+can't), the authorization test matrix, and how to re-run every phase's
+live-DB regression script in one pass.
 
 ## Manually testing auth once it's running
 
@@ -275,7 +287,7 @@ curl -s -b cookies.txt http://localhost:4000/api/v1/safety/reports
 | `API.md` | Endpoint reference (added as each phase's endpoints land) |
 | `DEPLOYMENT.md` | Docker/cloud deployment (added in Phase 11) |
 | `SCALING.md` | Load test results and bottleneck analysis (added in Phase 10) |
-| `TESTING.md` | Test strategy and coverage (added in Phase 9) |
+| `TESTING.md` | Test strategy and coverage, the authorization test matrix |
 
 ## Security notes
 
