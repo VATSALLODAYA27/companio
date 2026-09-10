@@ -24,6 +24,7 @@
     "prisma:seed": "ts-node --transpile-only prisma/seed.ts"
   },
   "devDependencies": {
+    "dotenv": "^16.4.5",
     "prisma": "7.10.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3"
