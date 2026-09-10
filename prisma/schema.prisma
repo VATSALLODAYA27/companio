@@ -220,6 +220,12 @@ model Verification {
 // Connections
 // ─────────────────────────────────────────────────────────────────────
 
+// Duplicate-request prevention (Phase 5 / SECURITY.md §8) is enforced by
+// a partial unique index — UNIQUE(requesterId, recipientId, activityId)
+// WHERE status = 'PENDING' — added by a hand-authored migration
+// (prisma/migrations/20260909020000_connection_request_pending_unique).
+// Prisma's schema DSL has no WHERE clause for @@unique, so it cannot be
+// declared here; see that migration's comment and DATABASE.md.
 model ConnectionRequest {
   id          String        @id @default(uuid())
   requesterId String
@@ -237,6 +243,12 @@ model ConnectionRequest {
   @@map("connection_requests")
 }
 
+// `userAId`/`userBId` are always written in sorted order (lexicographically
+// smaller id first) by ConnectionsService — never "requester"/"recipient"
+// order — so the unique constraint below actually catches a duplicate
+// connection regardless of which side reconnects to which, and so a
+// lookup for "does a connection exist between X and Y" only ever needs
+// to check one row shape, not both (X,Y) and (Y,X).
 model Connection {
   id         String    @id @default(uuid())
   userAId    String

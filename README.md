@@ -6,13 +6,16 @@ accounts, AI recommendations, events, or tourism features.
 
 ## Status
 
-**Phases 1–4 complete:** project scaffold, database schema, security
+**Phases 1–5 complete:** project scaffold, database schema, security
 model, authentication (Google OAuth + email/password, sessions, CSRF,
 rate limiting), profile CRUD + activity selection + verification badge
-display, and location + nearby discovery (1 km default radius, one
-indexed PostGIS query, distance shown only as a bucketed label — see
-`DATABASE.md`). Connections, chat, and the map are not implemented yet —
-see `ARCHITECTURE.md` for the phase plan.
+display, location + nearby discovery (1 km default radius, one indexed
+PostGIS query, distance shown only as a bucketed label — see
+`DATABASE.md`), and connection requests (send/accept/decline/cancel,
+list connections, unmatch — duplicate-request spam blocked at the
+database level, block relationships already respected even though
+there's no way to create one yet). Chat and the map are not implemented
+yet — see `ARCHITECTURE.md` for the phase plan.
 
 **Everything works with free-tier tools only.** Email/password login
 needs no external setup at all. Google OAuth needs a client ID/secret
@@ -145,6 +148,30 @@ curl -s -b cookies.txt "http://localhost:4000/api/v1/discovery/nearby?activityKe
 # 400 once you clear your own location — you can't search without one
 curl -i -b cookies.txt -X DELETE http://localhost:4000/api/v1/location/me -H "X-CSRF-Token: $CSRF_TOKEN"
 curl -i -b cookies.txt "http://localhost:4000/api/v1/discovery/nearby?activityKey=trekking"
+```
+
+## Manually testing connections (needs two logged-in users)
+
+Register a second account in a separate cookie jar first (`cookies2.txt`,
+same `/auth/register` call as above), then, as the first user:
+
+```bash
+CSRF_TOKEN=$(curl -s -c cookies.txt -b cookies.txt http://localhost:4000/api/v1/auth/csrf | python3 -c "import sys,json;print(json.load(sys.stdin)['csrfToken'])")
+OTHER_USER_ID=$(curl -s -b cookies2.txt http://localhost:4000/api/v1/auth/session | python3 -c "import sys,json;print(json.load(sys.stdin)['userId'])")
+
+# Send a request (recipientId is the id GET /discovery/nearby would return)
+REQUEST_ID=$(curl -s -b cookies.txt -X POST http://localhost:4000/api/v1/connections/requests \
+  -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF_TOKEN" \
+  -d "{\"recipientId\":\"$OTHER_USER_ID\",\"activityKey\":\"trekking\"}" | python3 -c "import sys,json;print(json.load(sys.stdin)['id'])")
+
+# As the second user: see it, then accept it
+CSRF2=$(curl -s -c cookies2.txt -b cookies2.txt http://localhost:4000/api/v1/auth/csrf | python3 -c "import sys,json;print(json.load(sys.stdin)['csrfToken'])")
+curl -s -b cookies2.txt http://localhost:4000/api/v1/connections/requests/incoming
+curl -i -b cookies2.txt -X POST http://localhost:4000/api/v1/connections/requests/$REQUEST_ID/accept -H "X-CSRF-Token: $CSRF2"
+
+# Both users now see the connection
+curl -s -b cookies.txt http://localhost:4000/api/v1/connections
+curl -s -b cookies2.txt http://localhost:4000/api/v1/connections
 ```
 
 ## Documentation index

@@ -81,8 +81,32 @@ projects a raw coordinate into a response (see SECURITY.md §5).
 
 **Ordering:** `NOW` availability first, then ascending distance.
 
+## Connections (Phase 5)
+
+Every route requires a session; the mutating ones (`POST`/`DELETE`) also
+require CSRF. `requesterId`/`recipientId`/participant checks always come
+from the session on one side and a client-supplied id on the other (e.g.
+`recipientId`, or `:id` in the URL) — every write is additionally scoped
+by who the session says the caller is, so a client can send a *request*
+to any id but can never accept, decline, cancel, or unmatch on someone
+else's behalf (403 if the session user isn't the actual participant).
+
+| Method | Path | Auth required | Notes |
+|---|---|---|---|
+| POST | `/connections/requests` | yes + CSRF | Body: `{ recipientId, activityKey }`. `recipientId` is the candidate's id exactly as returned by `GET /discovery/nearby`'s `userId`. 400 if sending to yourself; **the same generic 400** ("Unable to send a connection request to this user") whether the recipient doesn't exist, isn't `ACTIVE`, or a block exists in either direction — a requester can never learn *which* of those is true. 409 if already connected for this activity, or if a PENDING request in this direction for this activity already exists (see DATABASE.md "Connection request de-duplication"). Rate-limited (`RATE_LIMIT_MAX_CONNECTIONS`, default 20/min). |
+| GET | `/connections/requests/incoming` | yes | The caller's pending received requests, newest first: `[{ id, activityKey, status, createdAt, respondedAt, otherUser: { userId, firstName, photoUrl, verificationBadge } }]`. |
+| GET | `/connections/requests/outgoing` | yes | Same shape, the caller's pending sent requests — `otherUser` is the recipient. |
+| POST | `/connections/requests/:id/accept` | yes + CSRF | Only the request's recipient may accept. 403 if not the recipient, 409 if no longer `PENDING`. Creates (or revives, if this pair previously unmatched for this activity) a `Connection` row. Returns `{ connectionId }`. |
+| POST | `/connections/requests/:id/decline` | yes + CSRF | Only the recipient may decline. 403 / 409 as above. A declined request does **not** permanently block future requests — the duplicate-prevention index only blocks a second *pending* one (see DATABASE.md). Returns `{ status: "DECLINED" }`. |
+| DELETE | `/connections/requests/:id` | yes + CSRF | Only the requester may cancel their own still-pending request — a hard delete, not a status change. 403 if not the requester, 409 if no longer `PENDING`. Returns `{ cancelled: true }`. |
+| GET | `/connections` | yes | The caller's active (non-unmatched) connections, newest first: `[{ id, activityKey, createdAt, otherUser }]`. `otherUser` is always "the other participant", regardless of who originally sent the request. |
+| DELETE | `/connections/:id` | yes + CSRF | Unmatch — either participant may do this. Soft-delete (`removedAt`), so a later fresh request between the same pair for the same activity, if accepted, revives the same row rather than erroring. 403 if the caller isn't a participant, 404 if not found or already removed. Returns `{ removed: true }`. |
+
 ## Not yet implemented
 
-Connections, chat, map, block/report, and admin endpoints land in Phases
-5–8 and will be documented here as each ships — see `ARCHITECTURE.md` for
-the phase list and status.
+Chat, map, block/report, and admin endpoints land in Phases 6–8 and will
+be documented here as each ships — see `ARCHITECTURE.md` for the phase
+list and status. Note that `ConnectionsService` already checks the
+`Block` table (in both directions) before letting a request go through,
+even though there is no endpoint yet to *create* a block — that lands in
+Phase 8.

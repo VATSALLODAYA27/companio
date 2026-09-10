@@ -87,3 +87,40 @@ export interface NearbyCompanion {
   availability: Exclude<Availability, 'NOT_AVAILABLE'>;
   distanceLabel: DistanceLabel;
 }
+
+export type ConnectionRequestStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED';
+
+export const CONNECTION_REQUEST_STATUS_VALUES = [
+  'PENDING',
+  'ACCEPTED',
+  'DECLINED',
+  'EXPIRED',
+] as const;
+
+// The other party's public info on a request or connection — same
+// minimal shape as NearbyCompanion, deliberately no email/exact
+// location/internal ids beyond the routable userId.
+export interface ConnectionCounterpart {
+  userId: string;
+  firstName: string;
+  photoUrl: string | null;
+  verificationBadge: VerificationBadge;
+}
+
+export interface ConnectionRequestView {
+  id: string;
+  activityKey: ActivityKey;
+  status: ConnectionRequestStatus;
+  createdAt: string;
+  respondedAt: string | null;
+  // The requester on an incoming request, the recipient on an outgoing
+  // one — always "the other person", never the caller themselves.
+  otherUser: ConnectionCounterpart;
+}
+
+export interface ConnectionView {
+  id: string;
+  activityKey: ActivityKey;
+  createdAt: string;
+  otherUser: ConnectionCounterpart;
+}

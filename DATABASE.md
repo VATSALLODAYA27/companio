@@ -129,17 +129,68 @@ sequential scan) even with the `me` self-join in place, and that a
 caller with no `user_locations` row gets zero rows rather than an error
 or "everyone."
 
+## Connection request de-duplication (Phase 5)
+
+SECURITY.md §8 requires "duplicate-request prevention on
+`ConnectionRequest` (unique constraint)... stops repeated-request spam
+to the same person." This is a **partial** unique index —
+
+```sql
+CREATE UNIQUE INDEX "connection_requests_pending_unique_idx"
+  ON "connection_requests" ("requesterId", "recipientId", "activityId")
+  WHERE "status" = 'PENDING';
+```
+
+— not a plain one, and deliberately so: a plain unique constraint on
+those three columns would permanently block ever re-requesting the same
+person for the same activity after a single `DECLINE`, which is not what
+"stop spam" means. A second *pending* request in the same direction is
+spam; a fresh request after the other person declined, or after the
+connection later ended, is normal product behavior and is allowed.
+`ConnectionsService.sendRequest` also checks for this case up front
+(a friendlier 409 than a raw constraint violation) and additionally
+catches the constraint violation itself (Postgres `23505` -> Prisma
+`P2002`) as a fallback for the race between two near-simultaneous
+identical requests — see `scripts/phase5-connections-check.sql` for a
+live-database proof of both the block and the post-decline exception.
+
+Prisma's schema DSL has no `WHERE` clause for `@@unique`, so — exactly
+like the PostGIS `GIST` index in Phase 1 — this index exists only in a
+hand-authored migration
+(`prisma/migrations/20260909020000_connection_request_pending_unique`),
+not in `schema.prisma` itself; see that migration's comment.
+
+**Canonical pair ordering for `Connection`.** `Connection.userAId`/
+`userBId` are always written in sorted order (`[a, b].sort()`), never
+"requester"/"recipient" order, by every read and write in
+`ConnectionsService`. Postgres's plain `UNIQUE(userAId, userBId,
+activityId)` constraint is **not** symmetric — `(X, Y, activity)` and
+`(Y, X, activity)` are different index keys and the database would
+happily allow both — so it is this application-level sorting discipline,
+not the constraint alone, that guarantees one connection row per
+unordered pair per activity. `scripts/phase5-connections-check.sql` §7
+demonstrates the un-sorted case actually inserting a second row, to make
+that risk concrete rather than theoretical.
+
 ## Migrations
 
 The initial migration (`prisma/migrations/20260909000000_init/`) is
 hand-authored SQL, not `prisma migrate dev` output — it was written to
 mirror `schema.prisma` exactly, including the `geo` column and its
 `GIST` index, which Prisma cannot express declaratively as of this
-schema (`Unsupported("geography(Point, 4326)")`). `npm run
-prisma:migrate` works from here on for anyone with an unrestricted
-network path to Prisma's engine CDN; this prototype was built in a
-network-restricted environment where that wasn't available, so schema
-changes were verified directly against a live database instead (see
-`scripts/*.sql`) — see ARCHITECTURE.md "Prisma engine strategy" for the
-full story and why it doesn't affect the generated Prisma Client used
-at runtime.
+schema (`Unsupported("geography(Point, 4326)")`). The Phase 5 migration
+(`20260909020000_connection_request_pending_unique/`) is hand-authored
+for the same reason — a partial (`WHERE`-clause) unique index, which
+`@@unique` also cannot express — see "Connection request
+de-duplication" above. `npm run prisma:migrate` works from here on for
+anyone with an unrestricted network path to Prisma's engine CDN; this
+prototype was built in a network-restricted environment where that
+wasn't available, so schema changes were verified directly against a
+live database instead (see `scripts/*.sql`) — see ARCHITECTURE.md
+"Prisma engine strategy" for the full story and why it doesn't affect
+the generated Prisma Client used at runtime. One practical wrinkle
+specific to this sandbox: the tables were originally created by the
+`postgres` superuser, not the `companio` app role, so DDL (`CREATE
+INDEX`, etc.) must run as `postgres` (`sudo -u postgres psql`) even
+though the app's normal DML runs fine as `companio` — a real deployment
+would provision the app role as the schema owner and not hit this.

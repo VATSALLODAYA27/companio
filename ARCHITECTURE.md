@@ -53,6 +53,7 @@ to do that at prototype scale.
 - `profile/` — profile CRUD and activity selection (Phase 3), scoped entirely to the caller's own `userId` from the session — no route in this module accepts another user's id as input.
 - `location/` — owns `user_locations`, the caller's own row only (Phase 4). Every write goes through raw SQL — `PrismaService` has no generated-client type for the `geography` column — and reads back nothing beyond an existence check (`hasLocation`, used by `DiscoveryService` to give a clear 400 before searching rather than a query that silently returns zero rows). No route or method in this module ever accepts or returns another user's coordinates.
 - `discovery/` — the only module that queries across users' locations (Phase 4). Its `DiscoveryRepository` is the sole place `user_locations.geo` is read for anyone other than its owner, entirely inside one `$queryRaw` (see DATABASE.md "The nearby-match query"). `DiscoveryService` resolves the requested `activityKey` to an id (via `ActivitiesModule`) and confirms the caller has a location (via `LocationModule`) before ever calling the repository, then maps the repository's rows to the public response shape — `verified: boolean` becomes `verificationBadge`, and no raw `distance_m` field exists past the repository layer at all (the repository's SQL never even projects it — see the repository's own docblock).
+- `connections/` — connection requests and connections (Phase 5), the bridge between discovery and chat. Imports `ActivitiesModule` (resolve `activityKey` -> id) and `UsersModule` (confirm a recipient exists and is `ACTIVE`); deliberately does **not** import a `BlocksModule` because none exists yet (blocking is Phase 8) — it queries the `Block` table directly via `PrismaService`, the same defense-in-depth posture `DiscoveryRepository` already has. `ConnectionsService` is the one place `Connection.userAId`/`userBId` are ever written, and it always sorts the pair (`[a, b].sort()`) first — see the schema comment on `Connection` and DATABASE.md — so the unique constraint actually catches a duplicate connection regardless of which side reconnects to which.
 - Modules added in later phases follow this same pattern: `*.module.ts`, `*.controller.ts`, `*.service.ts`, `dto/*.ts`, and — where the module owns a non-trivial query — a dedicated `*.repository.ts`.
 
 ### Avoiding circular modules
@@ -144,7 +145,7 @@ version of this with concrete numbers from load testing.
 - [x] Phase 2 — authentication (Google OAuth + email/password, sessions, CSRF, rate limiting)
 - [x] Phase 3 — profile + activities
 - [x] Phase 4 — location + 1 km matching
-- [ ] Phase 5 — connection requests
+- [x] Phase 5 — connection requests
 - [ ] Phase 6 — chat
 - [ ] Phase 7 — map
 - [ ] Phase 8 — safety / privacy

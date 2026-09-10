@@ -11,6 +11,7 @@ import { ActivitiesModule } from './activities/activities.module';
 import { ProfileModule } from './profile/profile.module';
 import { LocationModule } from './location/location.module';
 import { DiscoveryModule } from './discovery/discovery.module';
+import { ConnectionsModule } from './connections/connections.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { DiscoveryModule } from './discovery/discovery.module';
     ProfileModule,
     LocationModule,
     DiscoveryModule,
+    ConnectionsModule,
   ],
   providers: [
     // Registers ThrottlerGuard as a global guard so @Throttle() overrides
