@@ -1,0 +1,131 @@
+# Companio — self-hosted production-style deployment stack (Phase 11)
+#
+# Wires the API and web images (apps/api/Dockerfile, apps/web/Dockerfile)
+# together with Postgres+PostGIS and Redis, plus a one-off migration
+# runner. This is the concrete, self-hosted deployment path documented in
+# DEPLOYMENT.md.
+#
+# Unlike docker-compose.yml (local dev), nothing below has a hardcoded
+# credential/secret default. Every secret-shaped value uses `${VAR:?...}`
+# syntax, so `docker compose -f docker-compose.prod.yml up` fails fast
+# with a clear "variable is not set" error instead of silently starting
+# with a guessable default. Supply real values via a `.env` file next to
+# this one (untracked — see .gitignore) or your platform's secret store.
+# SECURITY.md §7 promises secrets are never baked into an image layer —
+# consistent with that, every secret here arrives as a *runtime*
+# environment variable, never a Dockerfile ARG/ENV baked into a layer.
+#
+# Usage (see DEPLOYMENT.md for the full walkthrough):
+#   docker compose -f docker-compose.prod.yml --profile migrate up migrate
+#   docker compose -f docker-compose.prod.yml up -d db redis api web
+
+services:
+  db:
+    image: postgis/postgis:16-3.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+    volumes:
+      - companio_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # No published host port by default — only services on the compose
+    # network need to reach it. Uncomment for one-off host access (e.g.
+    # `psql` from outside the stack); never do this across an untrusted
+    # network without also restricting it (firewall / SSH tunnel).
+    # ports:
+    #   - '5432:5432'
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Applies pending migrations, then exits — it is NOT part of the
+  # always-running stack (see DEPLOYMENT.md "Migration strategy": this is
+  # a release-phase step, run once per deploy before api/web pick up a new
+  # image, never baked into the runtime image's own CMD). Placed behind a
+  # profile so a plain `docker compose up` doesn't try to run it
+  # continuously — invoke it explicitly (see the Usage note above) as part
+  # of your deploy sequence, before starting/restarting `api`.
+  migrate:
+    profiles: ['migrate']
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: companio-api:${IMAGE_TAG:-latest}
+    working_dir: /app
+    command: ['npx', 'prisma', 'migrate', 'deploy', '--schema=prisma/schema.prisma']
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: companio-api:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      API_PORT: 4000
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      # Empty by default — same "unset = pg's own default (10)" behavior
+      # as local dev. See SCALING.md "Connection pool" before setting
+      # this: it has to be sized against real Postgres max_connections and
+      # however many API instances/replicas will share that budget.
+      DB_POOL_MAX: ${DB_POOL_MAX:-}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-companio_sid}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-24}
+      CSRF_SECRET: ${CSRF_SECRET:?CSRF_SECRET is required}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?GOOGLE_CLIENT_SECRET is required}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:?GOOGLE_CALLBACK_URL is required}
+      CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:?CORS_ALLOWED_ORIGIN is required}
+      RATE_LIMIT_TTL_SECONDS: ${RATE_LIMIT_TTL_SECONDS:-60}
+      RATE_LIMIT_MAX_DEFAULT: ${RATE_LIMIT_MAX_DEFAULT:-100}
+      RATE_LIMIT_MAX_AUTH: ${RATE_LIMIT_MAX_AUTH:-10}
+      RATE_LIMIT_MAX_DISCOVERY: ${RATE_LIMIT_MAX_DISCOVERY:-20}
+      RATE_LIMIT_MAX_CONNECTIONS: ${RATE_LIMIT_MAX_CONNECTIONS:-20}
+      RATE_LIMIT_MAX_MESSAGES: ${RATE_LIMIT_MAX_MESSAGES:-60}
+      RATE_LIMIT_MAX_MAP: ${RATE_LIMIT_MAX_MAP:-20}
+      RATE_LIMIT_MAX_REPORTS: ${RATE_LIMIT_MAX_REPORTS:-5}
+      DEFAULT_SEARCH_RADIUS_METERS: ${DEFAULT_SEARCH_RADIUS_METERS:-1000}
+    ports:
+      - '${API_PORT:-4000}:4000'
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: companio-web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    ports:
+      - '${WEB_PORT:-3000}:3000'
+    depends_on:
+      - api
+
+volumes:
+  companio_db_data:

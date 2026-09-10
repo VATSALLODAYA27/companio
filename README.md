@@ -6,7 +6,7 @@ accounts, AI recommendations, events, or tourism features.
 
 ## Status
 
-**Phases 1–10 complete:** project scaffold, database schema, security
+**All 11 phases complete.** Project scaffold, database schema, security
 model, authentication (Google OAuth + email/password, sessions, CSRF,
 rate limiting), profile CRUD + activity selection + verification badge
 display, location + nearby discovery (1 km default radius, one indexed
@@ -34,8 +34,12 @@ rate limit engages) but also surfaced a real fairness gap — the rate
 limiter's default IP-based tracking shares one budget across every
 authenticated user behind the same IP, so two unrelated users on the
 same mobile carrier's network can throttle each other — documented as
-a recommendation rather than patched ad hoc (see `SCALING.md`). See
-`ARCHITECTURE.md` for the remaining phase plan.
+a recommendation rather than patched ad hoc (see `SCALING.md`) — and
+Phase 11's deployment path: multi-stage Dockerfiles for the API and web
+app, a `docker-compose.prod.yml` wiring them up with Postgres/Redis and
+a migration-as-a-release-step, and TLS/managed-platform guidance (see
+`DEPLOYMENT.md`). See `ARCHITECTURE.md` "Phase status" for what's
+deliberately out of scope rather than unfinished.
 
 **Everything works with free-tier tools only.** Email/password login
 needs no external setup at all. Google OAuth needs a client ID/secret
@@ -129,6 +133,20 @@ to populate a realistic background dataset; run `scripts/loadtest-cleanup.sql`
 afterward to remove everything these scripts create. See `SCALING.md`
 for the results, the methodology's caveats, and what each script's
 scenario is actually testing.
+
+## Deploying
+
+```bash
+cp .env.prod.example .env.prod   # fill in real values — see DEPLOYMENT.md
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build db redis
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile migrate up migrate
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build api web
+```
+
+Multi-stage Dockerfiles for both apps (`apps/api/Dockerfile`,
+`apps/web/Dockerfile`), migrations run as a one-off release step rather
+than baked into the running container, and TLS/reverse-proxy +
+managed-platform guidance are all in `DEPLOYMENT.md`.
 
 ## Manually testing auth once it's running
 
@@ -307,7 +325,7 @@ curl -s -b cookies.txt http://localhost:4000/api/v1/safety/reports
 | `SECURITY.md` | Threat model, auth/authz, location privacy, data retention |
 | `DATABASE.md` | Schema decisions, indexes, the nearby-match query |
 | `API.md` | Endpoint reference (added as each phase's endpoints land) |
-| `DEPLOYMENT.md` | Docker/cloud deployment (added in Phase 11) |
+| `DEPLOYMENT.md` | Docker Compose deployment, migrations, TLS, managed platforms |
 | `SCALING.md` | Load test results, bottleneck analysis, and recommendations |
 | `TESTING.md` | Test strategy and coverage, the authorization test matrix |
 

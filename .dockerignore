@@ -1,0 +1,56 @@
+# Companio — Docker build context excludes (Phase 11)
+#
+# Applies to `docker build` invocations run from the repo root (both
+# apps/api/Dockerfile and apps/web/Dockerfile expect that build context —
+# see docker-compose.prod.yml). Keeps the build context small and, most
+# importantly, makes sure nothing secret or unnecessary ever gets copied
+# into an image layer.
+
+# Secrets — SECURITY.md §7 promises these are "never baked into a Docker
+# image layer". Real values only ever reach containers via environment
+# variables / a secrets manager at run time, never COPYed in at build time.
+.env
+.env.*
+!.env.example
+
+# Dependencies — reinstalled inside the image from package-lock.json, not
+# copied from the host (host node_modules may contain host-platform native
+# binaries that don't match the image's architecture/libc).
+node_modules
+**/node_modules
+
+# Build output — rebuilt inside the image. Stale host builds (e.g. a local
+# apps/web/.next from `npm run dev`) must never leak into an image layer.
+dist
+**/dist
+.next
+**/.next
+build
+**/build
+
+# Version control / editor / OS cruft
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Test / coverage / load-test artifacts — not part of a runtime image
+coverage
+**/coverage
+loadtest
+scripts
+
+# Docs — large, frequently-edited, irrelevant to what actually runs
+*.md
+
+# Local dev compose files (the prod compose file explicitly excludes
+# itself too, so editing it doesn't invalidate every build's cache)
+docker-compose.yml
+docker-compose.prod.yml
+
+# Misc
+*.tsbuildinfo
+.turbo
+*.log

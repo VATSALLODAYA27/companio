@@ -172,4 +172,12 @@ per-IP) before it protects fairly across many concurrent users.
 - [x] Phase 8 — safety / privacy (block/report, block creation ends active connections + declines pending requests)
 - [x] Phase 9 — testing (cross-cutting coverage audit, authorization test matrix, full live-DB regression pass — see TESTING.md)
 - [x] Phase 10 — load testing (k6 against a 5k-user seeded population; found and documented a rate-limiter fairness gap and a connection-pool/CPU-contention finding — see SCALING.md)
-- [ ] Phase 11 — deployment
+- [x] Phase 11 — deployment (multi-stage Dockerfiles for api/web, docker-compose.prod.yml, migration-as-a-release-step, TLS/reverse-proxy and managed-platform guidance — see DEPLOYMENT.md)
+
+All 11 planned phases are complete. What's documented as deliberately
+out of scope or deferred along the way (not bugs, but honest edges of a
+prototype): the rate-limiter's per-IP-not-per-session bucket sharing
+(SCALING.md "Finding 1"), the blocks/reports retention gap pending a
+real account-deletion endpoint (SECURITY.md §10), and PostGIS support
+specifically on managed platforms being unverified rather than
+confirmed (DEPLOYMENT.md "Deploying to a managed platform").
