@@ -5,6 +5,7 @@ import { UsersService } from '../users/users.service';
 import { SessionsService } from './sessions.service';
 import { VerificationsService } from '../identity-verification/verifications.service';
 import { GoogleVerificationProvider } from '../identity-verification/google.provider';
+import { ProfileService } from '../profile/profile.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -12,6 +13,7 @@ describe('AuthService', () => {
   let sessions: jest.Mocked<Pick<SessionsService, 'create' | 'revoke'>>;
   let verifications: jest.Mocked<Pick<VerificationsService, 'recordGoogleVerification'>>;
   let googleVerification: jest.Mocked<Pick<GoogleVerificationProvider, 'verify'>>;
+  let profile: jest.Mocked<Pick<ProfileService, 'createInitialProfile'>>;
 
   const fakeSession = { id: 'session-1', expiresAt: new Date(Date.now() + 3600_000) };
 
@@ -38,34 +40,49 @@ describe('AuthService', () => {
       verify: jest.fn().mockResolvedValue({ status: 'VERIFIED', verifiedAt: new Date() }),
     } as unknown as jest.Mocked<GoogleVerificationProvider>;
 
+    profile = {
+      createInitialProfile: jest.fn().mockResolvedValue({ firstName: 'Test' }),
+    } as unknown as jest.Mocked<ProfileService>;
+
     service = new AuthService(
       users as unknown as UsersService,
       sessions as unknown as SessionsService,
       verifications as unknown as VerificationsService,
       googleVerification as unknown as GoogleVerificationProvider,
+      profile as unknown as ProfileService,
     );
   });
 
   describe('register', () => {
     it('rejects a duplicate email without revealing more than "already exists"', async () => {
       users.findByEmail.mockResolvedValue({ id: 'u1' } as never);
-      await expect(service.register('taken@test.local', 'password123')).rejects.toBeInstanceOf(
-        ConflictException,
-      );
+      await expect(
+        service.register('taken@test.local', 'password123', 'Alex'),
+      ).rejects.toBeInstanceOf(ConflictException);
       expect(users.createWithPassword).not.toHaveBeenCalled();
+      expect(profile.createInitialProfile).not.toHaveBeenCalled();
     });
 
     it('hashes the password before storing and issues a session', async () => {
       users.findByEmail.mockResolvedValue(null);
       users.createWithPassword.mockResolvedValue({ id: 'u1' } as never);
 
-      const result = await service.register('new@test.local', 'password123');
+      const result = await service.register('new@test.local', 'password123', 'Alex');
 
       const [, storedHash] = users.createWithPassword.mock.calls[0];
       expect(storedHash).not.toBe('password123'); // never store the plaintext
       expect(storedHash.startsWith('$argon2')).toBe(true);
       expect(sessions.create).toHaveBeenCalledWith('u1');
       expect(result).toBe(fakeSession);
+    });
+
+    it('creates the initial profile from the firstName given at registration', async () => {
+      users.findByEmail.mockResolvedValue(null);
+      users.createWithPassword.mockResolvedValue({ id: 'u1' } as never);
+
+      await service.register('new@test.local', 'password123', 'Alex');
+
+      expect(profile.createInitialProfile).toHaveBeenCalledWith('u1', 'Alex');
     });
   });
 

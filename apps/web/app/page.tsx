@@ -1,25 +1,43 @@
-/**
- * Phase 1 placeholder home screen. This intentionally does NOT yet
- * implement the login → activity → discovery flow — that's Phases 2-4.
- * Its only job right now is to prove the web app boots and can reach the
- * API's public health endpoint, as a scaffold sanity check.
- */
+'use client';
+
+import { useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '../contexts/auth-context';
+import { Button, Spinner } from '../components/ui';
+
 export default function HomePage() {
+  const { status } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      router.replace('/discover');
+    }
+  }, [status, router]);
+
+  if (status === 'loading' || status === 'authenticated') {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Spinner />
+      </div>
+    );
+  }
+
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
-      <h1 className="text-3xl font-semibold tracking-tight text-brand-700">
-        Companio
-      </h1>
+    <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-5 px-6 text-center">
+      <h1 className="text-3xl font-semibold tracking-tight text-brand-700">Companio</h1>
       <p className="text-sm text-gray-600">
-        Find someone to do something with — nearby, verified, right now.
+        Find a verified person nearby who wants to do the same activity, right now — and chat
+        safely once you both say yes.
       </p>
-      <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-4 text-left text-xs text-gray-500 shadow-sm">
-        <p className="font-medium text-gray-700">Scaffold status</p>
-        <p className="mt-1">
-          Phase 1 complete: project structure, database schema, and
-          security model are in place. Login, activity selection, and
-          nearby discovery arrive in the following phases.
-        </p>
+      <div className="flex gap-3">
+        <Link href="/login">
+          <Button>Log in</Button>
+        </Link>
+        <Link href="/login?mode=register">
+          <Button variant="secondary">Create account</Button>
+        </Link>
       </div>
     </main>
   );

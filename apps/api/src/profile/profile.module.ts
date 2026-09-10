@@ -8,5 +8,9 @@ import { ProfileService } from './profile.service';
   imports: [ActivitiesModule, IdentityVerificationModule],
   controllers: [ProfileController],
   providers: [ProfileService],
+  // AuthService (Phase 2) uses createInitialProfile() to turn the
+  // firstName collected at registration into a real Profile row — see
+  // auth.module.ts / auth.service.ts.
+  exports: [ProfileService],
 })
 export class ProfileModule {}

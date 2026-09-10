@@ -21,6 +21,24 @@ export class ProfileService {
     private readonly verifications: VerificationsService,
   ) {}
 
+  /**
+   * Called once, from AuthService.register, right after the User row is
+   * created — turns the `firstName` collected on the registration form
+   * into a real Profile row immediately, instead of leaving a new user
+   * to hit a 404 from getMyProfile() and have to type their name again
+   * on the profile screen. Uses create (not upsert): a brand-new userId
+   * can never already have a Profile, so a unique-constraint failure
+   * here would mean something else is wrong and should surface, not be
+   * silently swallowed.
+   */
+  async createInitialProfile(userId: string, firstName: string) {
+    const profile = await this.prisma.profile.create({
+      data: { userId, firstName },
+    });
+    const badge = await this.verifications.getBadge(userId);
+    return this.toProfileView(profile, badge);
+  }
+
   async getMyProfile(userId: string) {
     const profile = await this.prisma.profile.findUnique({ where: { userId } });
     if (!profile) {

@@ -67,7 +67,7 @@ export class AuthController {
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const session = await this.authService.register(dto.email, dto.password);
+    const session = await this.authService.register(dto.email, dto.password, dto.firstName);
     this.setSessionCookie(res, session.id, session.expiresAt);
     return { status: 'ok' };
   }

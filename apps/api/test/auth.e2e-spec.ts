@@ -60,7 +60,7 @@ describe('Auth (e2e)', () => {
       .send({ email: 'new@test.local', password: 'password123', firstName: 'Nia' });
 
     expect(res.status).toBe(201);
-    expect(authServiceMock.register).toHaveBeenCalledWith('new@test.local', 'password123');
+    expect(authServiceMock.register).toHaveBeenCalledWith('new@test.local', 'password123', 'Nia');
     const setCookie = res.headers['set-cookie'] as unknown as string[];
     expect(setCookie.some((c) => c.startsWith('companio_sid='))).toBe(true);
     expect(setCookie.some((c) => c.includes('HttpOnly'))).toBe(true);

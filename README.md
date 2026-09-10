@@ -41,6 +41,13 @@ a migration-as-a-release-step, and TLS/managed-platform guidance (see
 `DEPLOYMENT.md`). See `ARCHITECTURE.md` "Phase status" for what's
 deliberately out of scope rather than unfinished.
 
+**The web app (`apps/web`) is a complete, working UI over every endpoint
+above** — not a placeholder: sign-up/login, profile + activity +
+location setup, Discover, the Map (Leaflet/OpenStreetMap), Connections
+(requests/accept/decline/cancel/unmatch), Chat (REST history + live
+Socket.IO delivery), and Safety (block list + report flow). See "Using
+the web app" below.
+
 **Everything works with free-tier tools only.** Email/password login
 needs no external setup at all. Google OAuth needs a client ID/secret
 from [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
@@ -103,8 +110,42 @@ curl http://localhost:4000/health
 # { "status": "ok", "database": "ok", ... }
 ```
 
-Open `http://localhost:3000` — you should see the Companio placeholder
-screen confirming the scaffold booted.
+Open `http://localhost:3000` — this is the real, working app, not a
+placeholder: sign up, fill in your profile and activities, set a
+location, then use Discover or Map to find people, send/accept
+connection requests, chat live, and block/report from Safety. See "Using
+the web app" below for the full click-through.
+
+## Using the web app
+
+Once `npm run dev:api` and `npm run dev:web` are both running (and
+Postgres/Redis are up via `docker compose up -d`), open
+`http://localhost:3000` in a browser:
+
+1. **Sign up** — create an account with your name, email, and password.
+   You're taken straight to **Profile**.
+2. **Profile** — fill in the basics (photo URL is optional), pick your
+   activities and availability, then either click "Share my current
+   location" (browser geolocation) or enter latitude/longitude manually.
+   Nothing here — not even your exact location — is ever shown to
+   another user; distance is always a bucketed range and map pins are
+   randomized within ~150 m.
+3. **Discover** — pick an activity and a radius, search, and send a
+   connect request to anyone who shows up.
+4. **Map** — the same search, plotted on OpenStreetMap tiles with a
+   shaded "somewhere in this circle" indicator around each pin.
+5. **Connections** — accept/decline incoming requests, cancel your own
+   outgoing ones, and once connected, click "Chat" — messages send over
+   REST and arrive live on the other side via Socket.IO, no refresh
+   needed. "Unmatch" ends a connection either side can do at any time.
+6. **Safety** — every person card (Discover, Map) has "Report" and
+   "Block" buttons; this page lists who you've blocked (with an unblock
+   action) and the reports you've filed.
+
+To see the two-person flow (requests, live chat) yourself, open a second
+browser profile or an incognito window and sign up a second account
+there — two people can't occupy the same session/cookie jar, same as any
+real chat app.
 
 ## Tests
 
@@ -113,7 +154,7 @@ npm run test          # unit tests (apps/api)
 npm run test:e2e       # end-to-end tests (apps/api) — these mock Prisma, no DB needed
 ```
 
-165 unit tests, 88 e2e tests as of Phase 10. See `TESTING.md` for the
+166 unit tests, 88 e2e tests. See `TESTING.md` for the
 full strategy (four layers: unit, e2e, live-database SQL scripts, and
 real-HTTP boot verification — and why each catches bugs the others
 can't), the authorization test matrix, and how to re-run every phase's
