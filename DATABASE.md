@@ -129,6 +129,69 @@ sequential scan) even with the `me` self-join in place, and that a
 caller with no `user_locations` row gets zero rows rather than an error
 or "everyone."
 
+## The map-position query and coordinate fuzzing (Phase 7)
+
+`DiscoveryRepository.findNearbyForMap` is the same `candidates` CTE as
+above (identical activity/availability/discoverable/hidden/status/
+block/radius filtering, kept as a separate statement rather than a
+shared query builder specifically so Phase 4's already-verified
+`findNearby` can never regress from a Phase 7 change), with two extra
+projected columns:
+
+```sql
+ST_Y(ul.geo::geometry) AS "rawLatitude",
+ST_X(ul.geo::geometry) AS "rawLongitude"
+```
+
+`ST_X`/`ST_Y` require a `geometry`, not `geography` — hence the cast —
+and, critically, PostGIS points are internally `(x, y)` i.e. `(lng,
+lat)`, the reverse of how coordinates are normally spoken/written. Mixing
+these up is an easy, silent bug: swapped values still look like
+plausible-ish numbers rather than an obvious error. `scripts/phase7-map-check.sql`
+§2 guards against exactly this by asserting the extracted values against
+the literal numbers that were inserted, at coordinates chosen so a swap
+would not coincidentally look right.
+
+These raw coordinates are real — this repository method is the one
+deliberate exception, project-wide, to "another user's exact location
+never leaves the database layer." What makes it safe is `MapService`:
+every row is immediately passed through `fuzzPosition`
+(`apps/api/src/map/location-fuzz.util.ts`) before anything is returned,
+replacing the real point with one randomized by up to 150 m
+(`MAP_FUZZ_RADIUS_METERS`). The repository's return type names the
+fields `rawLatitude`/`rawLongitude` specifically so any code that might
+someday forward them has to visibly touch something called "raw" first.
+
+**Fuzzing scheme.** The offset for a given `(viewerId, targetId)` pair
+is derived from `SHA-256(viewerId:targetId:YYYY-MM-DD)` (UTC calendar
+day) — two independent uniform values are read from disjoint 4-byte
+ranges of the digest and converted to a point drawn uniformly over the
+*area* of a disk of radius 150 m (`radius = 150 * sqrt(u1)`, not `150 *
+u1`, which would bunch points near the center). No random seed or
+per-request state is involved, so the scheme needs nothing stored in the
+database beyond the real coordinate itself: the same three inputs always
+reproduce the same offset, so a viewer's map doesn't jitter around on
+every refresh; a different viewer, a different target, or the next
+calendar day all produce an unrelated offset, so results can't be
+compared across viewers to triangulate the real point (SECURITY.md §5).
+
+**Known, accepted residual risk.** A disk offset with mean zero means
+that averaging enough distinct days' fuzzed positions for the same
+target trends back toward the real coordinate — a viewer who logged one
+target's daily pin for long enough could, in principle, reconstruct
+something close to their true position. This is a real limitation of
+"randomize within N meters, changing daily" schemes, not unique to this
+implementation (comparable issues have been publicly reported against
+production dating apps that used a similar approach). It is accepted
+here, not overlooked: `RATE_LIMIT_MAX_MAP` bounds how fast one viewer can
+accumulate samples, and the fixed 24-hour cadence bounds how many
+distinct samples even exist to average. A production hardening path
+would add either a cap on how many distinct days of one target's
+position a single viewer can retain, or a per-`(viewer, target)` offset
+that never changes at all (trading "impossible to average" for "always
+identical, easier to memorize") — out of scope for this prototype but
+flagged here rather than silently accepted.
+
 ## Connection request de-duplication (Phase 5)
 
 SECURITY.md §8 requires "duplicate-request prevention on

@@ -3,16 +3,21 @@ import * as geohash from 'ngeohash';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**
- * The only place `user_locations.geo` is ever written or read. It's a
- * PostGIS `geography(Point,4326)` column — Prisma has no native type
- * for it (see prisma/schema.prisma), so every operation here goes
- * through raw SQL, never the generated client's normal query builder.
+ * The only place `user_locations.geo` is ever written. It's a PostGIS
+ * `geography(Point,4326)` column — Prisma has no native type for it
+ * (see prisma/schema.prisma), so every operation here goes through raw
+ * SQL, never the generated client's normal query builder.
  *
  * There is deliberately no "get my raw coordinates back" method and no
- * history table — see DATABASE.md "No location history table". The
- * only outputs this module (or discovery, which reads the same table)
- * ever produces are a boolean ("do I have a location set") and, for
- * other users, a bucketed distance label — never latitude/longitude.
+ * history table — see DATABASE.md "No location history table". This
+ * module's own outputs are only ever a boolean ("do I have a location
+ * set") — reading `user_locations.geo` for anyone other than its owner
+ * happens elsewhere (DiscoveryRepository, since Phase 4), never here.
+ * As of Phase 7, one endpoint (`GET /map/nearby`) does return a
+ * lat/lng for another user — but only ever a fuzzed position computed
+ * by `MapService`/`location-fuzz.util.ts` from a value this module
+ * never touches or exposes; the real coordinate itself still never
+ * leaves the server. See SECURITY.md §5.
  */
 @Injectable()
 export class LocationService {

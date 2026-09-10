@@ -83,12 +83,24 @@ TESTING.md).
     per (viewer, target, day) so it doesn't jitter into an average on
     refresh but differs per viewer so results can't be compared to
     triangulate.
-- `discovery/nearby` carries its own, tighter rate limit
-  (`RATE_LIMIT_MAX_DISCOVERY`) specifically because repeated querying is
-  the realistic attack for profiling one target's movement over time.
+- `discovery/nearby` and `map/nearby` each carry their own, tighter rate
+  limit (`RATE_LIMIT_MAX_DISCOVERY`, `RATE_LIMIT_MAX_MAP`) specifically
+  because repeated querying is the realistic attack for profiling one
+  target's movement over time — the map endpoint is if anything more
+  sensitive, since it hands back a position rather than a distance
+  bucket.
 - A minimum location-delta threshold gates when a location update is even
   written, reducing both write volume and the granularity of any
   server-side record.
+- **Accepted residual risk:** because the fuzz offset is redrawn each
+  calendar day and its expected value is the real point (a random offset
+  over a disk averages to its center), a viewer who recorded one target's
+  fuzzed pin every day for long enough could, in principle, average those
+  samples back toward the real coordinate. This is a known trade-off of
+  "randomize within N meters, refreshed daily" schemes generally, not
+  specific to this implementation — see DATABASE.md "The map-position
+  query and coordinate fuzzing" for the fuller discussion and the
+  hardening options considered out of scope for this prototype.
 
 ## 6. Encryption Strategy
 

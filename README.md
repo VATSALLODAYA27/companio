@@ -6,7 +6,7 @@ accounts, AI recommendations, events, or tourism features.
 
 ## Status
 
-**Phases 1–6 complete:** project scaffold, database schema, security
+**Phases 1–7 complete:** project scaffold, database schema, security
 model, authentication (Google OAuth + email/password, sessions, CSRF,
 rate limiting), profile CRUD + activity selection + verification badge
 display, location + nearby discovery (1 km default radius, one indexed
@@ -14,10 +14,13 @@ PostGIS query, distance shown only as a bucketed label — see
 `DATABASE.md`), connection requests (send/accept/decline/cancel, list
 connections, unmatch — duplicate-request spam blocked at the database
 level, block relationships already respected even though there's no way
-to create one yet), and chat — REST message history/send/read-receipts
-plus a Socket.IO gateway for live delivery, both scoped to the two
-participants of a conversation (see `API.md` "Chat"). The map is not
-implemented yet — see `ARCHITECTURE.md` for the phase plan.
+to create one yet), chat — REST message history/send/read-receipts plus
+a Socket.IO gateway for live delivery, both scoped to the two
+participants of a conversation (see `API.md` "Chat") — and the map:
+`GET /map/nearby` returns the same nearby matches as discovery, but with
+a position on each pin that's always randomized within ~150 m and never
+the real coordinate (see `API.md` "Map"). Safety/privacy (block/report)
+is not implemented yet — see `ARCHITECTURE.md` for the phase plan.
 
 **Everything works with free-tier tools only.** Email/password login
 needs no external setup at all. Google OAuth needs a client ID/secret
@@ -150,6 +153,24 @@ curl -s -b cookies.txt "http://localhost:4000/api/v1/discovery/nearby?activityKe
 # 400 once you clear your own location — you can't search without one
 curl -i -b cookies.txt -X DELETE http://localhost:4000/api/v1/location/me -H "X-CSRF-Token: $CSRF_TOKEN"
 curl -i -b cookies.txt "http://localhost:4000/api/v1/discovery/nearby?activityKey=trekking"
+```
+
+## Manually testing the map (needs the same setup as discovery above)
+
+```bash
+# Same query params, same matches as /discovery/nearby — set your
+# location again first if you cleared it above.
+curl -i -b cookies.txt -X PUT http://localhost:4000/api/v1/location/me \
+  -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF_TOKEN" \
+  -d '{"latitude":19.1728,"longitude":72.9425}'
+
+curl -s -b cookies.txt "http://localhost:4000/api/v1/map/nearby?activityKey=trekking&radiusMeters=1000"
+# Each pin's latitude/longitude is randomized within ~150m of that
+# person's real position — request it again right away and the same
+# pin comes back at the exact same position (it's deterministic for
+# today), but it'll be a different position tomorrow, and a different
+# viewer querying the same target sees a different position than you
+# do. See API.md "Map" and SECURITY.md §5 for why.
 ```
 
 ## Manually testing connections (needs two logged-in users)

@@ -156,11 +156,27 @@ all three exercised), join authorization for both an actual participant
 and an unrelated third user, and a live `message` event delivered to a
 joined socket when the other participant posts via REST.
 
+## Map (Phase 7)
+
+The same underlying search as `/discovery/nearby` — same auth
+requirement, same activity/radius/offset query params, same
+exclusions (self, non-`ACTIVE`, non-discoverable/hidden, blocked in
+either direction, wrong activity/availability, outside radius) — but
+shaped for rendering pins on a map instead of cards in a list.
+
+| Method | Path | Auth required | Notes |
+|---|---|---|---|
+| GET | `/map/nearby` | yes | Query params identical to `/discovery/nearby`: `activityKey` (required), `radiusMeters` (optional, same fixed set), `offset` (optional). 400 if the caller hasn't set a location yet. Rate-limited separately (`RATE_LIMIT_MAX_MAP`, default 20/min) — same rationale as discovery's own limit (§5 of SECURITY.md): a position, even a fuzzed one, is exactly what repeated querying is trying to profile. |
+
+**Response shape:** `{ pins: [{ userId, firstName, photoUrl, ageRange, verificationBadge, activityKey, availability, distanceLabel, latitude, longitude }] }` — every field except `latitude`/`longitude` is identical to a `/discovery/nearby` result.
+
+**`latitude`/`longitude` are always fuzzed, never real.** This is the one endpoint in the entire API that returns a lat/lng pair for a user other than the caller, and it is deliberately never the real one: each position is randomized by up to 150 m (`MAP_FUZZ_RADIUS_METERS` in `@companio/shared`), computed deterministically from `(viewer, target, calendar day)` — see `apps/api/src/map/location-fuzz.util.ts` and SECURITY.md §5. Practically: refreshing the map within the same day shows the same pin position (it doesn't jitter around), but two different viewers see two different fuzzed positions for the same target, and tomorrow's position for the same viewer/target pair will differ from today's. Verified against a live database (axis-order correctness — `ST_Y`/`ST_X` are easy to swap — see `scripts/phase7-map-check.sql`) and over real HTTP (fuzzed position within bound, stable across repeated calls the same day, and gone entirely once a block exists between the two users).
+
 ## Not yet implemented
 
-Map, block/report, and admin endpoints land in Phases 7–8 and will be
-documented here as each ships — see `ARCHITECTURE.md` for the phase list
-and status. Note that `ConnectionsService` already checks the `Block`
-table (in both directions) before letting a request go through, even
-though there is no endpoint yet to *create* a block — that lands in
-Phase 8.
+Block/report and admin endpoints land in Phase 8 and will be documented
+here once they ship — see `ARCHITECTURE.md` for the phase list and
+status. Note that `ConnectionsService` and `DiscoveryRepository`/
+`MapService` already check the `Block` table (in both directions)
+before letting a request through or a pin appear, even though there is
+no endpoint yet to *create* a block.

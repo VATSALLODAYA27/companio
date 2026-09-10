@@ -88,6 +88,34 @@ export interface NearbyCompanion {
   distanceLabel: DistanceLabel;
 }
 
+// Every position GET /map/nearby returns is randomized by up to this
+// many meters from the user's real position (see SECURITY.md §5).
+// Exposed here so the web client can render an honest "somewhere in
+// this circle" indicator around a pin instead of implying pinpoint
+// accuracy — the server enforces the actual fuzzing, this constant is
+// only for that UI affordance.
+export const MAP_FUZZ_RADIUS_METERS = 150;
+
+// A map pin for another nearby user (Phase 7). Same public fields as
+// NearbyCompanion, plus a position — latitude/longitude here are ALWAYS
+// the fuzzed position (randomized within MAP_FUZZ_RADIUS_METERS,
+// deterministic per viewer+target+calendar day), never the real
+// coordinate. This is the one place in the API a lat/lng pair is ever
+// returned for a user other than the caller — see SECURITY.md §5 for
+// why that's still safe.
+export interface MapPin {
+  userId: string;
+  firstName: string;
+  photoUrl: string | null;
+  ageRange: AgeRange | null;
+  verificationBadge: VerificationBadge;
+  activityKey: ActivityKey;
+  availability: Exclude<Availability, 'NOT_AVAILABLE'>;
+  distanceLabel: DistanceLabel;
+  latitude: number;
+  longitude: number;
+}
+
 export type ConnectionRequestStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED';
 
 export const CONNECTION_REQUEST_STATUS_VALUES = [
