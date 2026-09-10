@@ -22,6 +22,11 @@ prisma/*.db
 *.log
 npm-debug.log*
 
+# Load test — a regenerated fixture (real session cookies from a
+# specific run), not source. loadtest/results/*.txt are committed
+# evidence and deliberately NOT .log so this rule doesn't catch them.
+loadtest/.vu-sessions.json
+
 # OS
 .DS_Store
 Thumbs.db

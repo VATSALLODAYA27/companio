@@ -154,8 +154,11 @@ since its migrations are hand-authored SQL (see DATABASE.md).
             → Kubernetes + HPA once traffic justifies the ops overhead
 ```
 
-See SCALING.md (added in the deployment phase) for the fully worked-out
-version of this with concrete numbers from load testing.
+See SCALING.md for Phase 10's actual load-test numbers and findings
+against this path — in particular, why read replicas remain a "when
+traffic justifies it" item rather than an urgent one, and why
+Redis-backed rate limiting needs a per-session tracker (not just
+per-IP) before it protects fairly across many concurrent users.
 
 ## Phase status
 
@@ -168,5 +171,5 @@ version of this with concrete numbers from load testing.
 - [x] Phase 7 — map (fuzzed positions, ~150 m, deterministic per viewer/target/day)
 - [x] Phase 8 — safety / privacy (block/report, block creation ends active connections + declines pending requests)
 - [x] Phase 9 — testing (cross-cutting coverage audit, authorization test matrix, full live-DB regression pass — see TESTING.md)
-- [ ] Phase 10 — load testing
+- [x] Phase 10 — load testing (k6 against a 5k-user seeded population; found and documented a rate-limiter fairness gap and a connection-pool/CPU-contention finding — see SCALING.md)
 - [ ] Phase 11 — deployment

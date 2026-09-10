@@ -1,0 +1,272 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: 00-provision-sessions.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 1 max VUs, 10m30s max duration (incl. graceful stop):
+              * default: 1 iterations shared among 1 VUs (maxDuration: 10m0s, gracefulStop: 30s)
+
+
+running (00m01.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m01.0s/10m0s  0/1 shared iters
+
+running (00m02.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m02.0s/10m0s  0/1 shared iters
+
+running (00m03.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m03.0s/10m0s  0/1 shared iters
+
+running (00m04.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m04.0s/10m0s  0/1 shared iters
+
+running (00m05.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m05.0s/10m0s  0/1 shared iters
+
+running (00m06.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m06.0s/10m0s  0/1 shared iters
+
+running (00m07.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m07.0s/10m0s  0/1 shared iters
+
+running (00m08.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m08.0s/10m0s  0/1 shared iters
+
+running (00m09.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m09.0s/10m0s  0/1 shared iters
+
+running (00m10.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m10.0s/10m0s  0/1 shared iters
+
+running (00m11.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m11.0s/10m0s  0/1 shared iters
+
+running (00m12.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m12.0s/10m0s  0/1 shared iters
+
+running (00m13.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m13.0s/10m0s  0/1 shared iters
+
+running (00m14.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m14.0s/10m0s  0/1 shared iters
+
+running (00m15.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m15.0s/10m0s  0/1 shared iters
+
+running (00m16.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m16.0s/10m0s  0/1 shared iters
+
+running (00m17.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m17.0s/10m0s  0/1 shared iters
+
+running (00m18.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m18.0s/10m0s  0/1 shared iters
+
+running (00m19.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m19.0s/10m0s  0/1 shared iters
+
+running (00m20.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m20.0s/10m0s  0/1 shared iters
+
+running (00m21.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m21.0s/10m0s  0/1 shared iters
+
+running (00m22.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m22.0s/10m0s  0/1 shared iters
+
+running (00m23.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m23.0s/10m0s  0/1 shared iters
+
+running (00m24.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m24.0s/10m0s  0/1 shared iters
+
+running (00m25.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m25.0s/10m0s  0/1 shared iters
+
+running (00m26.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m26.0s/10m0s  0/1 shared iters
+
+running (00m27.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m27.0s/10m0s  0/1 shared iters
+
+running (00m28.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m28.0s/10m0s  0/1 shared iters
+
+running (00m29.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m29.0s/10m0s  0/1 shared iters
+
+running (00m30.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m30.0s/10m0s  0/1 shared iters
+
+running (00m31.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m31.0s/10m0s  0/1 shared iters
+
+running (00m32.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m32.0s/10m0s  0/1 shared iters
+
+running (00m33.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m33.0s/10m0s  0/1 shared iters
+
+running (00m34.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m34.0s/10m0s  0/1 shared iters
+
+running (00m35.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m35.0s/10m0s  0/1 shared iters
+
+running (00m36.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m36.0s/10m0s  0/1 shared iters
+
+running (00m37.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m37.0s/10m0s  0/1 shared iters
+
+running (00m38.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m38.0s/10m0s  0/1 shared iters
+
+running (00m39.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m39.0s/10m0s  0/1 shared iters
+
+running (00m40.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m40.0s/10m0s  0/1 shared iters
+
+running (00m41.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m41.0s/10m0s  0/1 shared iters
+
+running (00m42.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m42.0s/10m0s  0/1 shared iters
+
+running (00m43.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m43.0s/10m0s  0/1 shared iters
+
+running (00m44.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m44.0s/10m0s  0/1 shared iters
+
+running (00m45.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m45.0s/10m0s  0/1 shared iters
+
+running (00m46.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m46.0s/10m0s  0/1 shared iters
+
+running (00m47.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m47.0s/10m0s  0/1 shared iters
+
+running (00m48.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m48.0s/10m0s  0/1 shared iters
+
+running (00m49.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m49.0s/10m0s  0/1 shared iters
+
+running (00m50.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m50.0s/10m0s  0/1 shared iters
+
+running (00m51.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m51.0s/10m0s  0/1 shared iters
+
+running (00m52.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m52.0s/10m0s  0/1 shared iters
+
+running (00m53.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m53.0s/10m0s  0/1 shared iters
+
+running (00m54.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m54.0s/10m0s  0/1 shared iters
+
+running (00m55.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m55.0s/10m0s  0/1 shared iters
+
+running (00m56.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m56.0s/10m0s  0/1 shared iters
+
+running (00m57.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m57.0s/10m0s  0/1 shared iters
+
+running (00m58.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m58.0s/10m0s  0/1 shared iters
+
+running (00m59.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m59.0s/10m0s  0/1 shared iters
+
+running (01m00.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  01m00.0s/10m0s  0/1 shared iters
+
+running (01m01.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  01m01.0s/10m0s  0/1 shared iters
+
+running (01m02.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  01m02.0s/10m0s  0/1 shared iters
+
+running (01m03.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  01m03.0s/10m0s  0/1 shared iters
+
+running (01m04.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  01m04.0s/10m0s  0/1 shared iters
+time="2026-09-10T06:40:58Z" level=info msg="VU_SESSIONS_JSON:{\"users\":[{\"userId\":\"0242fbee-cacf-4bbd-be83-0d4cf011a1f3\",\"email\":\"loadtest-vu-0@loadtest.local\",\"sessionCookie\":\"companio_sid=s%3Aaabbfc3a-4938-42b6-aa26-2b025bf16473.nxlYffvjebXvB7XZlr5RDTy7Uv9L8vyGyNFp8ICas9w\",\"csrfCookie\":\"companio_csrf=s%3A5fbfa26b5903c58b273e6aca3479eaa350d16a47e254d9077bb6c31f7d324d70.K0hOwQbVz9QM44XdGU4PpcGGFTJYiYrjuO9MzNwGaCk\",\"csrfToken\":\"5fbfa26b5903c58b273e6aca3479eaa350d16a47e254d9077bb6c31f7d324d70\",\"cookieHeader\":\"companio_sid=s%3Aaabbfc3a-4938-42b6-aa26-2b025bf16473.nxlYffvjebXvB7XZlr5RDTy7Uv9L8vyGyNFp8ICas9w; companio_csrf=s%3A5fbfa26b5903c58b273e6aca3479eaa350d16a47e254d9077bb6c31f7d324d70.K0hOwQbVz9QM44XdGU4PpcGGFTJYiYrjuO9MzNwGaCk\"},{\"userId\":\"0998f210-cf88-4fc4-a388-92b10415e200\",\"email\":\"loadtest-vu-1@loadtest.local\",\"sessionCookie\":\"companio_sid=s%3A38873573-5a3f-4ae3-b7ea-58ae8e4bcdf4.Z87c80tVF680nlOfmu35Uc5Y6Yckj%2BQ%2FqR2XnC%2BshxI\",\"csrfCookie\":\"companio_csrf=s%3A716e3203183ddf6b3949a0f8f4ff602294f2941fa33d28e8dfb5b75784e31fbc.ZfczuQt7fAVTvrxiNHl3IUHh3B0UcTSFMtcJ8RWaY%2FI\",\"csrfToken\":\"716e3203183ddf6b3949a0f8f4ff602294f2941fa33d28e8dfb5b75784e31fbc\",\"cookieHeader\":\"companio_sid=s%3A38873573-5a3f-4ae3-b7ea-58ae8e4bcdf4.Z87c80tVF680nlOfmu35Uc5Y6Yckj%2BQ%2FqR2XnC%2BshxI; companio_csrf=s%3A716e3203183ddf6b3949a0f8f4ff602294f2941fa33d28e8dfb5b75784e31fbc.ZfczuQt7fAVTvrxiNHl3IUHh3B0UcTSFMtcJ8RWaY%2FI\"},{\"userId\":\"d84b8124-e130-4152-ae2f-7a6f86e7debc\",\"email\":\"loadtest-vu-2@loadtest.local\",\"sessionCookie\":\"companio_sid=s%3A1eb5e065-6dc3-42f8-afef-ee0c05cd0999.I%2FgtgyKK5DIKXu8%2BjxhQZNxod6cTc4%2FL0eObrPGirTY\",\"csrfCookie\":\"companio_csrf=s%3A3a29471ec7657acce7cb9ee800bba45d0056680bd2063ef0c3698cd99e0f1dc5.fkYs9JlAr3s0CeHErY2XhjAfjcDYb2b3xPN4751bLWw\",\"csrfToken\":\"3a29471ec7657acce7cb9ee800bba45d0056680bd2063ef0c3698cd99e0f1dc5\",\"cookieHeader\":\"companio_sid=s%3A1eb5e065-6dc3-42f8-afef-ee0c05cd0999.I%2FgtgyKK5DIKXu8%2BjxhQZNxod6cTc4%2FL0eObrPGirTY; companio_csrf=s%3A3a29471ec7657acce7cb9ee800bba45d0056680bd2063ef0c3698cd99e0f1dc5.fkYs9JlAr3s0CeHErY2XhjAfjcDYb2b3xPN4751bLWw\"},{\"userId\":\"1aa90a51-bbf7-4181-851d-2d6a5528fd17\",\"email\":\"loadtest-vu-3@loadtest.local\",\"sessionCookie\":\"companio_sid=s%3Aed227fba-f646-4351-b222-81b57cca523d.%2FATr4VBlcMVBmYV1EEf96OeUQLfyRPdEsPpHpQhL%2BrI\",\"csrfCookie\":\"companio_csrf=s%3Ad044d5a0c0177c6bbc0af5a62a675da3873b222009d34c7f77e403d2408f81d5.Ft8S3j4WJvXpi6O0%2B7HS%2FwlWGoylfZu3oESjTBQjsgk\",\"csrfToken\":\"d044d5a0c0177c6bbc0af5a62a675da3873b222009d34c7f77e403d2408f81d5\",\"cookieHeader\":\"companio_sid=s%3Aed227fba-f646-4351-b222-81b57cca523d.%2FATr4VBlcMVBmYV1EEf96OeUQLfyRPdEsPpHpQhL%2BrI; companio_csrf=s%3Ad044d5a0c0177c6bbc0af5a62a675da3873b222009d34c7f77e403d2408f81d5.Ft8S3j4WJvXpi6O0%2B7HS%2FwlWGoylfZu3oESjTBQjsgk\"},{\"userId\":\"b4010dec-0b59-444a-9ec9-fb0a00fe8937\",\"email\":\"loadtest-vu-4@loadtest.local\",\"sessionCookie\":\"companio_sid=s%3Af8dbb705-e365-4167-87fb-a6320cb1956b.S28NhjLnYPUSt2a0SxoR1PZaJwn8O2e8Nco3hOcsemg\",\"csrfCookie\":\"companio_csrf=s%3A35defc5008884795e8fc4af41b126214d447cdd541a872942be5378fed13145b.rKKwxlmvgvUI7%2B%2F7coxQxvXIiWgfox8%2BjqKU29TdO%2BY\",\"csrfToken\":\"35defc5008884795e8fc4af41b126214d447cdd541a872942be5378fed13145b\",\"cookieHeader\":\"companio_sid=s%3Af8dbb705-e365-4167-87fb-a6320cb1956b.S28NhjLnYPUSt2a0SxoR1PZaJwn8O2e8Nco3hOcsemg; companio_csrf=s%3A35defc5008884795e8fc4af41b126214d447cdd541a872942be5378fed13145b.rKKwxlmvgvUI7%2B%2F7coxQxvXIiWgfox8%2BjqKU29TdO%2BY\"},{\"userId\":\"73878615-9049-46d3-b99f-16da57f2c1b3\",\"email\":\"loadtest-vu-5@loadtest.local\",\"sessionCookie\":\"companio_sid=s%3Ad2437b16-12ee-43ef-81d8-389238edd145.m9RFR5nC7vwtqlNUTTYqoQsx4hH2CwEcObuXE3VzH%2FE\",\"csrfCookie\":\"companio_csrf=s%3A3d139eecafdee949cf7b67705b938a66e9028414f85d3cd105bc01d11087d2f7.UxNkeHinoS5bzYBVP73Oljfo2H9tWVXR8zJi7Wi8uTs\",\"csrfToken\":\"3d139eecafdee949cf7b67705b938a66e9028414f85d3cd105bc01d11087d2f7\",\"cookieHeader\":\"companio_sid=s%3Ad2437b16-12ee-43ef-81d8-389238edd145.m9RFR5nC7vwtqlNUTTYqoQsx4hH2CwEcObuXE3VzH%2FE; companio_csrf=s%3A3d139eecafdee949cf7b67705b938a66e9028414f85d3cd105bc01d11087d2f7.UxNkeHinoS5bzYBVP73Oljfo2H9tWVXR8zJi7Wi8uTs\"},{\"userId\":\"c60d0d8b-65a9-437b-9cf3-f67232c52d65\",\"email\":\"loadtest-vu-6@loadtest.local\",\"sessionCookie\":\"companio_sid=s%3Af1d90459-a43f-48a8-bd34-852071a0049b.xk%2Bk6ZJCJsUcwvsQHJkBzFDyF%2Ffl%2F6wsXisMQoH%2FHD0\",\"csrfCookie\":\"companio_csrf=s%3A041103333f64ae8bd24578b44af4053d838294fe7e4c398b780f18312d474c94.p1QslbYIsM4cRKl%2Fv2qfQygWiU7VJ4IMsqt4RKSzw4U\",\"csrfToken\":\"041103333f64ae8bd24578b44af4053d838294fe7e4c398b780f18312d474c94\",\"cookieHeader\":\"companio_sid=s%3Af1d90459-a43f-48a8-bd34-852071a0049b.xk%2Bk6ZJCJsUcwvsQHJkBzFDyF%2Ffl%2F6wsXisMQoH%2FHD0; companio_csrf=s%3A041103333f64ae8bd24578b44af4053d838294fe7e4c398b780f18312d474c94.p1QslbYIsM4cRKl%2Fv2qfQygWiU7VJ4IMsqt4RKSzw4U\"},{\"userId\":\"0e7775cf-f93f-4018-b642-51c425dbed35\",\"email\":\"loadtest-vu-7@loadtest.local\",\"sessionCookie\":\"companio_sid=s%3A31b4d411-fc49-423b-89e3-e59209e6286a.t5xLCCKYPY6ehq2ltNe3jo72sbpLYU2o%2BWVOj5wdA0Y\",\"csrfCookie\":\"companio_csrf=s%3Af20074de0335bae514f0e403a01f341fd7118cc635a736367ec477d90ed73b8c.0HkWbALzvoS5NvlmF7AWiSYQUmdK8xFi9pXmlwDfYSU\",\"csrfToken\":\"f20074de0335bae514f0e403a01f341fd7118cc635a736367ec477d90ed73b8c\",\"cookieHeader\":\"companio_sid=s%3A31b4d411-fc49-423b-89e3-e59209e6286a.t5xLCCKYPY6ehq2ltNe3jo72sbpLYU2o%2BWVOj5wdA0Y; companio_csrf=s%3Af20074de0335bae514f0e403a01f341fd7118cc635a736367ec477d90ed73b8c.0HkWbALzvoS5NvlmF7AWiSYQUmdK8xFi9pXmlwDfYSU\"},{\"userId\":\"ab2f85a7-7223-4968-93cf-c37a4131225b\",\"email\":\"loadtest-vu-8@loadtest.local\",\"sessionCookie\":\"companio_sid=s%3A365876fe-fc91-4a64-a5ba-b5e256d85e3e.Me13363tMaBVxwyCRQadfcU7oMrhm3ZImQvdQvMQiXc\",\"csrfCookie\":\"companio_csrf=s%3A413ee8f09c2ec1678f8fc09182bb8138f8f028635abe2d51932756ac9f88cea7.ET1xfnjKmn4ktmi4NdLEGkaeyxJt%2BYeUFXwuqVuEyrA\",\"csrfToken\":\"413ee8f09c2ec1678f8fc09182bb8138f8f028635abe2d51932756ac9f88cea7\",\"cookieHeader\":\"companio_sid=s%3A365876fe-fc91-4a64-a5ba-b5e256d85e3e.Me13363tMaBVxwyCRQadfcU7oMrhm3ZImQvdQvMQiXc; companio_csrf=s%3A413ee8f09c2ec1678f8fc09182bb8138f8f028635abe2d51932756ac9f88cea7.ET1xfnjKmn4ktmi4NdLEGkaeyxJt%2BYeUFXwuqVuEyrA\"},{\"userId\":\"dd6fe5dc-ccb7-4e84-9621-b006660a23b3\",\"email\":\"loadtest-vu-9@loadtest.local\",\"sessionCookie\":\"companio_sid=s%3A480c361a-1ec2-47de-ab98-e204039541b1.VdYENHEPXq1OoLPR0fJaWMdVtD4sYO9ic4r4nUb4Tlw\",\"csrfCookie\":\"companio_csrf=s%3Ac38636ce95288b09343f1e7f15ec7843fabfcfd6c4315f8f87a9d81b277ab628.REOd6Y7O3FVGWR9rQNqHzP5Mlly8FbchZ7YXPKwD2d8\",\"csrfToken\":\"c38636ce95288b09343f1e7f15ec7843fabfcfd6c4315f8f87a9d81b277ab628\",\"cookieHeader\":\"companio_sid=s%3A480c361a-1ec2-47de-ab98-e204039541b1.VdYENHEPXq1OoLPR0fJaWMdVtD4sYO9ic4r4nUb4Tlw; companio_csrf=s%3Ac38636ce95288b09343f1e7f15ec7843fabfcfd6c4315f8f87a9d81b277ab628.REOd6Y7O3FVGWR9rQNqHzP5Mlly8FbchZ7YXPKwD2d8\"}],\"connectedPair\":{\"userAIndex\":0,\"userBIndex\":1,\"conversationId\":\"b71505f8-36f3-4f66-a87c-3c55aa6be4c5\"}}" source=console
+
+     ✓ vu0 register 201
+     ✓ vu0 profile 200
+     ✓ vu0 activities 200
+     ✓ vu0 location 200
+     ✓ vu1 register 201
+     ✓ vu1 profile 200
+     ✓ vu1 activities 200
+     ✓ vu1 location 200
+     ✓ vu2 register 201
+     ✓ vu2 profile 200
+     ✓ vu2 activities 200
+     ✓ vu2 location 200
+     ✓ vu3 register 201
+     ✓ vu3 profile 200
+     ✓ vu3 activities 200
+     ✓ vu3 location 200
+     ✓ vu4 register 201
+     ✓ vu4 profile 200
+     ✓ vu4 activities 200
+     ✓ vu4 location 200
+     ✓ vu5 register 201
+     ✓ vu5 profile 200
+     ✓ vu5 activities 200
+     ✓ vu5 location 200
+     ✓ vu6 register 201
+     ✓ vu6 profile 200
+     ✓ vu6 activities 200
+     ✓ vu6 location 200
+     ✓ vu7 register 201
+     ✓ vu7 profile 200
+     ✓ vu7 activities 200
+     ✓ vu7 location 200
+     ✓ vu8 register 201
+     ✓ vu8 profile 200
+     ✓ vu8 activities 200
+     ✓ vu8 location 200
+     ✓ vu9 register 201
+     ✓ vu9 profile 200
+     ✓ vu9 activities 200
+     ✓ vu9 location 200
+     ✓ connection request created
+     ✓ connection accepted
+
+     checks.........................: 100.00% 42 out of 42
+     data_received..................: 74 kB   1.2 kB/s
+     data_sent......................: 38 kB   593 B/s
+     http_req_blocked...............: avg=122.91µs min=2.54µs  med=4.16µs  max=1.09ms   p(90)=727.53µs p(95)=915.16µs
+     http_req_connecting............: avg=99.13µs  min=0s      med=0s      max=998.19µs p(90)=606.04µs p(95)=807.35µs
+     http_req_duration..............: avg=17.72ms  min=1.54ms  med=6.35ms  max=212.05ms p(90)=29.77ms  p(95)=74.32ms 
+       { expected_response:true }...: avg=17.72ms  min=1.54ms  med=6.35ms  max=212.05ms p(90)=29.77ms  p(95)=74.32ms 
+     http_req_failed................: 0.00%   0 out of 62
+     http_req_receiving.............: avg=165.1µs  min=50.66µs med=92.7µs  max=3.92ms   p(90)=171.53µs p(95)=181.99µs
+     http_req_sending...............: avg=44.63µs  min=10.77µs med=27.67µs max=354.14µs p(90)=94.76µs  p(95)=120.54µs
+     http_req_tls_handshaking.......: avg=0s       min=0s      med=0s      max=0s       p(90)=0s       p(95)=0s      
+     http_req_waiting...............: avg=17.51ms  min=1.45ms  med=6.17ms  max=211.64ms p(90)=29.61ms  p(95)=74.09ms 
+     http_reqs......................: 62      0.966795/s
+     iteration_duration.............: avg=1m4s     min=1m4s    med=1m4s    max=1m4s     p(90)=1m4s     p(95)=1m4s    
+     iterations.....................: 1       0.015593/s
+     vus............................: 1       min=1        max=1
+     vus_max........................: 1       min=1        max=1
+
+
+running (01m04.1s), 0/1 VUs, 1 complete and 0 interrupted iterations
+default ✓ [ 100% ] 1 VUs  01m04.1s/10m0s  1/1 shared iters

@@ -1,0 +1,35 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: 01-rate-limit-fairness.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 1 max VUs, 10m30s max duration (incl. graceful stop):
+              * default: 1 iterations shared among 1 VUs (maxDuration: 10m0s, gracefulStop: 30s)
+
+time="2026-09-10T06:41:33Z" level=info msg="FAIRNESS_RESULTS_JSON:[{\"user\":\"A\",\"n\":1,\"status\":200},{\"user\":\"A\",\"n\":2,\"status\":200},{\"user\":\"A\",\"n\":3,\"status\":200},{\"user\":\"A\",\"n\":4,\"status\":200},{\"user\":\"A\",\"n\":5,\"status\":200},{\"user\":\"A\",\"n\":6,\"status\":200},{\"user\":\"A\",\"n\":7,\"status\":200},{\"user\":\"A\",\"n\":8,\"status\":200},{\"user\":\"A\",\"n\":9,\"status\":200},{\"user\":\"A\",\"n\":10,\"status\":200},{\"user\":\"A\",\"n\":11,\"status\":200},{\"user\":\"A\",\"n\":12,\"status\":200},{\"user\":\"A\",\"n\":13,\"status\":200},{\"user\":\"A\",\"n\":14,\"status\":200},{\"user\":\"B\",\"n\":1,\"status\":200},{\"user\":\"B\",\"n\":2,\"status\":200},{\"user\":\"B\",\"n\":3,\"status\":200},{\"user\":\"B\",\"n\":4,\"status\":200},{\"user\":\"B\",\"n\":5,\"status\":200},{\"user\":\"B\",\"n\":6,\"status\":200},{\"user\":\"B\",\"n\":7,\"status\":429},{\"user\":\"B\",\"n\":8,\"status\":429},{\"user\":\"B\",\"n\":9,\"status\":429},{\"user\":\"B\",\"n\":10,\"status\":429}]" source=console
+time="2026-09-10T06:41:33Z" level=info msg="User B got its first 429 on B's own request #7 (after only 6 of B's own requests succeeded) — B never came close to making 20 requests itself." source=console
+
+     data_received..................: 108 kB 137 kB/s
+     data_sent......................: 6.1 kB 7.7 kB/s
+     http_req_blocked...............: avg=15.36µs  min=3.28µs   med=5.43µs   max=223.11µs p(90)=9.35µs   p(95)=17.18µs 
+     http_req_connecting............: avg=5.86µs   min=0s       med=0s       max=140.71µs p(90)=0s       p(95)=0s      
+     http_req_duration..............: avg=32.52ms  min=1.17ms   med=36.12ms  max=71.87ms  p(90)=39.68ms  p(95)=40.35ms 
+       { expected_response:true }...: avg=38.7ms   min=33.7ms   med=37.28ms  max=71.87ms  p(90)=39.78ms  p(95)=42.03ms 
+     http_req_failed................: 16.66% 4 out of 24
+     http_req_receiving.............: avg=148.9µs  min=56.36µs  med=128.06µs max=420.27µs p(90)=198.95µs p(95)=251.13µs
+     http_req_sending...............: avg=24.38µs  min=10.39µs  med=16.58µs  max=62.95µs  p(90)=43.96µs  p(95)=57.47µs 
+     http_req_tls_handshaking.......: avg=0s       min=0s       med=0s       max=0s       p(90)=0s       p(95)=0s      
+     http_req_waiting...............: avg=32.34ms  min=1.1ms    med=35.95ms  max=71.63ms  p(90)=39.51ms  p(95)=40.13ms 
+     http_reqs......................: 24     30.529809/s
+     iteration_duration.............: avg=785.96ms min=785.96ms med=785.96ms max=785.96ms p(90)=785.96ms p(95)=785.96ms
+     iterations.....................: 1      1.272075/s
+
+
+running (00m00.8s), 0/1 VUs, 1 complete and 0 interrupted iterations
+default ✓ [ 100% ] 1 VUs  00m00.8s/10m0s  1/1 shared iters

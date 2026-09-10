@@ -20,6 +20,20 @@ import { PrismaPg } from '@prisma/adapter-pg';
  * a native engine binary — see ARCHITECTURE.md "Prisma engine strategy".
  * Because of that, the connection string is supplied here, to the
  * adapter, not via a `url` in the datasource block.
+ *
+ * `DB_POOL_MAX` (Phase 10): the driver adapter passes its config
+ * straight through to `pg`'s own `Pool`, which defaults to `max: 10` if
+ * never set — a limit nothing in this codebase had ever previously
+ * overridden or even surfaced as configurable. Phase 10's load test
+ * (see SCALING.md "Connection pool") found this was the actual binding
+ * constraint on discovery/map throughput under concurrent load, well
+ * before Postgres or CPU became the bottleneck: `pg_stat_activity`
+ * plateaued at ~10 active connections throughout a 40-VU run regardless
+ * of load. Left unset, behavior is unchanged from before this option
+ * existed (pg's own default of 10 applies) — this only matters once an
+ * operator has sized it deliberately against real Postgres
+ * `max_connections` and however many API instances will share that
+ * budget (see SCALING.md "Recommendations" before changing it).
  */
 @Injectable()
 export class PrismaService
@@ -36,8 +50,13 @@ export class PrismaService
       // OAuth in Phase 2 (never crash *silently* into a broken state).
       throw new Error('DATABASE_URL is not set');
     }
+    const poolMaxRaw = config.get<string>('DB_POOL_MAX');
+    const poolMax = poolMaxRaw ? Number(poolMaxRaw) : undefined;
     super({
-      adapter: new PrismaPg({ connectionString }),
+      adapter: new PrismaPg({
+        connectionString,
+        ...(poolMax && Number.isFinite(poolMax) ? { max: poolMax } : {}),
+      }),
       log: [
         { emit: 'event', level: 'error' },
         { emit: 'event', level: 'warn' },

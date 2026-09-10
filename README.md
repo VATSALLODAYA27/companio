@@ -6,7 +6,7 @@ accounts, AI recommendations, events, or tourism features.
 
 ## Status
 
-**Phases 1–9 complete:** project scaffold, database schema, security
+**Phases 1–10 complete:** project scaffold, database schema, security
 model, authentication (Google OAuth + email/password, sessions, CSRF,
 rate limiting), profile CRUD + activity selection + verification badge
 display, location + nearby discovery (1 km default radius, one indexed
@@ -27,8 +27,15 @@ cross-cutting coverage gaps (the global exception filter, `UsersService`,
 and the identity-verification module all had no dedicated tests before
 this phase, even though the code itself shipped earlier) and re-ran
 every phase's live-database verification script as a single regression
-pass with zero failures (see `TESTING.md`). See `ARCHITECTURE.md` for
-the remaining phase plan.
+pass with zero failures (see `TESTING.md`) — and Phase 10's k6 load
+testing against a 5,000-user seeded population, which found the server
+stays correct under load (never a 5xx, clean 429s once the configured
+rate limit engages) but also surfaced a real fairness gap — the rate
+limiter's default IP-based tracking shares one budget across every
+authenticated user behind the same IP, so two unrelated users on the
+same mobile carrier's network can throttle each other — documented as
+a recommendation rather than patched ad hoc (see `SCALING.md`). See
+`ARCHITECTURE.md` for the remaining phase plan.
 
 **Everything works with free-tier tools only.** Email/password login
 needs no external setup at all. Google OAuth needs a client ID/secret
@@ -102,11 +109,26 @@ npm run test          # unit tests (apps/api)
 npm run test:e2e       # end-to-end tests (apps/api) — these mock Prisma, no DB needed
 ```
 
-161 unit tests, 88 e2e tests as of Phase 9. See `TESTING.md` for the
+165 unit tests, 88 e2e tests as of Phase 10. See `TESTING.md` for the
 full strategy (four layers: unit, e2e, live-database SQL scripts, and
 real-HTTP boot verification — and why each catches bugs the others
 can't), the authorization test matrix, and how to re-run every phase's
 live-DB regression script in one pass.
+
+## Load testing
+
+```bash
+k6 run loadtest/00-provision-sessions.js   # one-time: registers 10 real load-test users
+k6 run loadtest/01-rate-limit-fairness.js  # ~1s — proves the rate limiter shares one budget per IP
+k6 run loadtest/02-default-config-load.js  # ~1 min — confirms correct behavior at the app's real limits
+k6 run loadtest/03-capacity-relaxed-limits.js  # ~75s — needs a server booted with rate limits raised, see its own docblock
+```
+
+Requires [k6](https://k6.io) and `scripts/loadtest-seed.sql` run first
+to populate a realistic background dataset; run `scripts/loadtest-cleanup.sql`
+afterward to remove everything these scripts create. See `SCALING.md`
+for the results, the methodology's caveats, and what each script's
+scenario is actually testing.
 
 ## Manually testing auth once it's running
 
@@ -286,7 +308,7 @@ curl -s -b cookies.txt http://localhost:4000/api/v1/safety/reports
 | `DATABASE.md` | Schema decisions, indexes, the nearby-match query |
 | `API.md` | Endpoint reference (added as each phase's endpoints land) |
 | `DEPLOYMENT.md` | Docker/cloud deployment (added in Phase 11) |
-| `SCALING.md` | Load test results and bottleneck analysis (added in Phase 10) |
+| `SCALING.md` | Load test results, bottleneck analysis, and recommendations |
 | `TESTING.md` | Test strategy and coverage, the authorization test matrix |
 
 ## Security notes

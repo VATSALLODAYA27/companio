@@ -89,6 +89,10 @@ its own). `all-exceptions.filter.ts`, `users.service.ts`,
 `government-kyc.provider.ts` are now all at 100% statement coverage in
 the unit run. Re-run `npm run test -- --coverage` in `apps/api` for the
 current numbers; this snapshot will drift as later phases add code.
+(Phase 10 added one more: `prisma.service.spec.ts`, testing the
+`DB_POOL_MAX` config option that phase's load test added — see
+SCALING.md "Fixed as part of this phase" — bringing the running total
+to 21 suites, 165 unit tests.)
 
 **Why controller coverage looks low in the unit-only report.** Every
 controller in this app (`ConnectionsController`, `SafetyController`,
