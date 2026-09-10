@@ -53,7 +53,8 @@ to do that at prototype scale.
 - `profile/` — profile CRUD and activity selection (Phase 3), scoped entirely to the caller's own `userId` from the session — no route in this module accepts another user's id as input.
 - `location/` — owns `user_locations`, the caller's own row only (Phase 4). Every write goes through raw SQL — `PrismaService` has no generated-client type for the `geography` column — and reads back nothing beyond an existence check (`hasLocation`, used by `DiscoveryService` to give a clear 400 before searching rather than a query that silently returns zero rows). No route or method in this module ever accepts or returns another user's coordinates.
 - `discovery/` — the only module that queries across users' locations (Phase 4). Its `DiscoveryRepository` is the sole place `user_locations.geo` is read for anyone other than its owner, entirely inside one `$queryRaw` (see DATABASE.md "The nearby-match query"). `DiscoveryService` resolves the requested `activityKey` to an id (via `ActivitiesModule`) and confirms the caller has a location (via `LocationModule`) before ever calling the repository, then maps the repository's rows to the public response shape — `verified: boolean` becomes `verificationBadge`, and no raw `distance_m` field exists past the repository layer at all (the repository's SQL never even projects it — see the repository's own docblock).
-- `connections/` — connection requests and connections (Phase 5), the bridge between discovery and chat. Imports `ActivitiesModule` (resolve `activityKey` -> id) and `UsersModule` (confirm a recipient exists and is `ACTIVE`); deliberately does **not** import a `BlocksModule` because none exists yet (blocking is Phase 8) — it queries the `Block` table directly via `PrismaService`, the same defense-in-depth posture `DiscoveryRepository` already has. `ConnectionsService` is the one place `Connection.userAId`/`userBId` are ever written, and it always sorts the pair (`[a, b].sort()`) first — see the schema comment on `Connection` and DATABASE.md — so the unique constraint actually catches a duplicate connection regardless of which side reconnects to which.
+- `connections/` — connection requests and connections (Phase 5), the bridge between discovery and chat. Imports `ActivitiesModule` (resolve `activityKey` -> id) and `UsersModule` (confirm a recipient exists and is `ACTIVE`); deliberately does **not** import a `BlocksModule` because none exists yet (blocking is Phase 8) — it queries the `Block` table directly via `PrismaService`, the same defense-in-depth posture `DiscoveryRepository` already has. `ConnectionsService` is the one place `Connection.userAId`/`userBId` are ever written, and it always sorts the pair (`[a, b].sort()`) first — see the schema comment on `Connection` and DATABASE.md — so the unique constraint actually catches a duplicate connection regardless of which side reconnects to which. Since Phase 6, `acceptRequest` also upserts the connection's one `Conversation` row inside the same transaction — chat's route design (see below) assumes every accepted connection already has a resolvable conversation, so lazy creation on first message would have meant a second code path for "no conversation yet".
+- `chat/` — message persistence + realtime push (Phase 6). `ChatService` owns all authorization (participant check derived from `Conversation` → `Connection` → `userAId`/`userBId`, re-verified on every call, never cached) and all writes; `ChatController` is thin REST plumbing with the usual `SessionAuthGuard` + `CsrfGuard` + rate limiting. `ChatGateway` is *only* a live-push fan-out — it never persists anything and never trusts a client-asserted identity, re-deriving the session user from the signed cookie itself (see "Event layer" below for how it learns about new messages). Imports nothing from `connections/`; it only needs `PrismaService` and its own `Conversation`/`Message` tables, kept decoupled from `ConnectionsService` internals.
 - Modules added in later phases follow this same pattern: `*.module.ts`, `*.controller.ts`, `*.service.ts`, `dto/*.ts`, and — where the module owns a non-trivial query — a dedicated `*.repository.ts`.
 
 ### Avoiding circular modules
@@ -76,6 +77,21 @@ Swapping it for a Kafka producer later is a one-file change — nothing
 else in the codebase imports Kafka directly. This satisfies "Kafka only
 where it provides real benefit" without deploying a broker for a
 prototype with no consumers yet.
+
+This abstraction existed since Phase 1 purely as a promise; Phase 6's
+`message.sent` event (`DomainEventsService.publishMessageSent`, defined
+in `common/events/`) is its first real producer *and* consumer.
+`ChatService.sendMessage` publishes after persisting; `ChatGateway`
+subscribes via `@OnEvent(MESSAGE_SENT_EVENT)` and rebroadcasts to the
+Socket.IO room for that conversation. `ChatGateway` importing the event
+bus directly (rather than going through some intermediary) is a
+deliberate, narrow exception to "nothing else imports the event bus
+directly" — WebSocket push is an in-process, single-server-instance
+concern today, not something that needs to survive a future move to
+Kafka the way cross-service events would. When this API is horizontally
+scaled, the fan-out step (not the publish/subscribe contract) is what
+gets a Redis/Kafka-backed adapter so a message sent to an instance one
+user isn't connected to still reaches them.
 
 ## Prisma engine strategy
 
@@ -146,7 +162,7 @@ version of this with concrete numbers from load testing.
 - [x] Phase 3 — profile + activities
 - [x] Phase 4 — location + 1 km matching
 - [x] Phase 5 — connection requests
-- [ ] Phase 6 — chat
+- [x] Phase 6 — chat (REST persistence + Socket.IO live push)
 - [ ] Phase 7 — map
 - [ ] Phase 8 — safety / privacy
 - [ ] Phase 9 — testing

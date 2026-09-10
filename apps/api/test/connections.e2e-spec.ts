@@ -224,7 +224,10 @@ describe('Connections (e2e)', () => {
     });
 
     it('accepts scoped to the session user as recipient, never a body-supplied id', async () => {
-      connectionsServiceMock.acceptRequest.mockResolvedValue({ connectionId: CONNECTION_ID });
+      connectionsServiceMock.acceptRequest.mockResolvedValue({
+        connectionId: CONNECTION_ID,
+        conversationId: 'conv-1',
+      });
       const res = await request(app.getHttpServer())
         .post(`/connections/requests/${REQUEST_ID}/accept`)
         .set('Cookie', csrfPair())
@@ -282,6 +285,7 @@ describe('Connections (e2e)', () => {
           id: CONNECTION_ID,
           activityKey: 'trekking',
           createdAt: '2026-01-01T00:00:00.000Z',
+          conversationId: 'conv-1',
           otherUser: {
             userId: RECIPIENT_ID,
             firstName: 'Bhavesh',

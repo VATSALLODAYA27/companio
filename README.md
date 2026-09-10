@@ -6,16 +6,18 @@ accounts, AI recommendations, events, or tourism features.
 
 ## Status
 
-**Phases 1–5 complete:** project scaffold, database schema, security
+**Phases 1–6 complete:** project scaffold, database schema, security
 model, authentication (Google OAuth + email/password, sessions, CSRF,
 rate limiting), profile CRUD + activity selection + verification badge
 display, location + nearby discovery (1 km default radius, one indexed
 PostGIS query, distance shown only as a bucketed label — see
-`DATABASE.md`), and connection requests (send/accept/decline/cancel,
-list connections, unmatch — duplicate-request spam blocked at the
-database level, block relationships already respected even though
-there's no way to create one yet). Chat and the map are not implemented
-yet — see `ARCHITECTURE.md` for the phase plan.
+`DATABASE.md`), connection requests (send/accept/decline/cancel, list
+connections, unmatch — duplicate-request spam blocked at the database
+level, block relationships already respected even though there's no way
+to create one yet), and chat — REST message history/send/read-receipts
+plus a Socket.IO gateway for live delivery, both scoped to the two
+participants of a conversation (see `API.md` "Chat"). The map is not
+implemented yet — see `ARCHITECTURE.md` for the phase plan.
 
 **Everything works with free-tier tools only.** Email/password login
 needs no external setup at all. Google OAuth needs a client ID/secret
@@ -29,8 +31,8 @@ login, works immediately.
 ## Stack
 
 Next.js + TypeScript + Tailwind (web) · NestJS + TypeScript (API) ·
-PostgreSQL + PostGIS via Prisma · Redis · Socket.IO (chat, from Phase 6) ·
-Docker Compose for local infrastructure.
+PostgreSQL + PostGIS via Prisma · Redis · Socket.IO (chat, live since
+Phase 6) · Docker Compose for local infrastructure.
 
 ## Project layout
 
@@ -169,10 +171,36 @@ CSRF2=$(curl -s -c cookies2.txt -b cookies2.txt http://localhost:4000/api/v1/aut
 curl -s -b cookies2.txt http://localhost:4000/api/v1/connections/requests/incoming
 curl -i -b cookies2.txt -X POST http://localhost:4000/api/v1/connections/requests/$REQUEST_ID/accept -H "X-CSRF-Token: $CSRF2"
 
-# Both users now see the connection
+# Both users now see the connection, each with a conversationId
 curl -s -b cookies.txt http://localhost:4000/api/v1/connections
 curl -s -b cookies2.txt http://localhost:4000/api/v1/connections
 ```
+
+## Manually testing chat (needs an accepted connection from above)
+
+```bash
+CONVERSATION_ID=$(curl -s -b cookies2.txt http://localhost:4000/api/v1/connections/requests/$REQUEST_ID/accept -X POST -H "X-CSRF-Token: $CSRF2" | python3 -c "import sys,json;print(json.load(sys.stdin)['conversationId'])")
+# (or read it off GET /connections above, if you already accepted)
+
+# User 1 sends a message
+curl -s -b cookies.txt -X POST http://localhost:4000/api/v1/conversations/$CONVERSATION_ID/messages \
+  -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF_TOKEN" \
+  -d '{"body":"hey, still on for trekking saturday?"}'
+
+# User 2 reads the history, then marks it read
+curl -s -b cookies2.txt http://localhost:4000/api/v1/conversations/$CONVERSATION_ID/messages
+curl -s -b cookies2.txt -X POST http://localhost:4000/api/v1/conversations/$CONVERSATION_ID/messages/read -H "X-CSRF-Token: $CSRF2"
+```
+
+The REST calls above are the full story for persistence — a curl script
+can't easily demonstrate the WebSocket half, since that needs a real
+Socket.IO client (not plain HTTP) to hold a connection open. To see live
+push yourself: connect with `socket.io-client` to `http://localhost:4000`
+sending your session cookie as a `Cookie` header (Socket.IO's handshake
+doesn't run cookie-parser, so the raw `companio_sid=...` cookie value is
+what the server expects — see `API.md` "WebSocket gateway"), emit
+`join` with `{ conversationId }`, and you'll receive a `message` event
+the instant the other participant posts one over REST — no polling.
 
 ## Documentation index
 

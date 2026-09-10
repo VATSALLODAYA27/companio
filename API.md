@@ -96,17 +96,71 @@ else's behalf (403 if the session user isn't the actual participant).
 | POST | `/connections/requests` | yes + CSRF | Body: `{ recipientId, activityKey }`. `recipientId` is the candidate's id exactly as returned by `GET /discovery/nearby`'s `userId`. 400 if sending to yourself; **the same generic 400** ("Unable to send a connection request to this user") whether the recipient doesn't exist, isn't `ACTIVE`, or a block exists in either direction — a requester can never learn *which* of those is true. 409 if already connected for this activity, or if a PENDING request in this direction for this activity already exists (see DATABASE.md "Connection request de-duplication"). Rate-limited (`RATE_LIMIT_MAX_CONNECTIONS`, default 20/min). |
 | GET | `/connections/requests/incoming` | yes | The caller's pending received requests, newest first: `[{ id, activityKey, status, createdAt, respondedAt, otherUser: { userId, firstName, photoUrl, verificationBadge } }]`. |
 | GET | `/connections/requests/outgoing` | yes | Same shape, the caller's pending sent requests — `otherUser` is the recipient. |
-| POST | `/connections/requests/:id/accept` | yes + CSRF | Only the request's recipient may accept. 403 if not the recipient, 409 if no longer `PENDING`. Creates (or revives, if this pair previously unmatched for this activity) a `Connection` row. Returns `{ connectionId }`. |
+| POST | `/connections/requests/:id/accept` | yes + CSRF | Only the request's recipient may accept. 403 if not the recipient, 409 if no longer `PENDING`. Creates (or revives, if this pair previously unmatched for this activity) a `Connection` row, and — new in Phase 6 — eagerly upserts the one `Conversation` row for that connection in the same transaction, so chat is immediately usable. Returns `{ connectionId, conversationId }`. |
 | POST | `/connections/requests/:id/decline` | yes + CSRF | Only the recipient may decline. 403 / 409 as above. A declined request does **not** permanently block future requests — the duplicate-prevention index only blocks a second *pending* one (see DATABASE.md). Returns `{ status: "DECLINED" }`. |
 | DELETE | `/connections/requests/:id` | yes + CSRF | Only the requester may cancel their own still-pending request — a hard delete, not a status change. 403 if not the requester, 409 if no longer `PENDING`. Returns `{ cancelled: true }`. |
-| GET | `/connections` | yes | The caller's active (non-unmatched) connections, newest first: `[{ id, activityKey, createdAt, otherUser }]`. `otherUser` is always "the other participant", regardless of who originally sent the request. |
+| GET | `/connections` | yes | The caller's active (non-unmatched) connections, newest first: `[{ id, activityKey, createdAt, otherUser, conversationId }]`. `otherUser` is always "the other participant", regardless of who originally sent the request. A row is silently skipped (never emitted with a null `conversationId`) if its conversation can't be loaded — should not happen in practice since accept always creates one. |
 | DELETE | `/connections/:id` | yes + CSRF | Unmatch — either participant may do this. Soft-delete (`removedAt`), so a later fresh request between the same pair for the same activity, if accepted, revives the same row rather than erroring. 403 if the caller isn't a participant, 404 if not found or already removed. Returns `{ removed: true }`. |
+
+## Chat (Phase 6)
+
+Persistence, validation, CSRF, and rate limiting all live on the REST
+routes below — the same rigor as every other mutating route in the app.
+The WebSocket gateway (below) is *only* for live push; a client never
+writes a message over the socket.
+
+Every route is scoped to `:conversationId`. `ChatService` resolves the
+`Conversation` → its `Connection` → checks the session user is one of
+`userAId`/`userBId` on every call — never trusts a client-supplied
+identity for who's allowed to read or write. This is the literal route
+shape SECURITY.md §3 specified before any Phase 6 code existed.
+
+| Method | Path | Auth required | Notes |
+|---|---|---|---|
+| GET | `/conversations/:conversationId/messages` | yes | Cursor-paginated history, oldest-first: `[{ id, conversationId, senderId, body, sentAt, readAt }]`. Query params: `before` (optional ISO-8601 timestamp — strict `sentAt <` cursor), `limit` (optional, 1–100, default 50, oversized values silently capped rather than rejected). 404 if the conversation doesn't exist, 403 if the caller isn't one of its two participants. **Reading history is allowed even after the connection has ended** (unmatched) — only *sending* is blocked at that point (see SECURITY.md §10 retention philosophy). |
+| POST | `/conversations/:conversationId/messages` | yes + CSRF | Body: `{ body }`, 1–2000 characters. 403 if not a participant, 400 once the connection has ended ("This connection has ended — you can no longer send messages here"). Persists the message with `senderId` from the session (never the body), then publishes a domain event that the WebSocket gateway rebroadcasts to the conversation's room. Rate-limited (`RATE_LIMIT_MAX_MESSAGES`, default 60/min). Returns the created message. |
+| POST | `/conversations/:conversationId/messages/read` | yes + CSRF | Marks every unread message from the *other* participant as read — never the caller's own messages, regardless of body. Allowed even after the connection has ended, same as `GET`. Returns `{ updated: <count> }`. |
+
+### WebSocket gateway (`ChatGateway`)
+
+Same origin as the REST API (`ws://localhost:4000` in dev), CORS-scoped
+to `CORS_ALLOWED_ORIGIN` with credentials. Socket.IO's handshake does not
+run Express's cookie-parser, so the session cookie is parsed and unsigned
+by hand (`extractSignedCookie`, replicating cookie-parser's `s:<value>.<hmac>`
+scheme) and checked against the same validity rules `SessionAuthGuard`
+uses (not revoked, not expired, user `ACTIVE`).
+
+Authentication runs as Socket.IO server-side middleware (`io.use()`,
+registered in `afterInit`), not in `handleConnection` — the client's
+`connect` event, and therefore anything the client does the instant it
+fires (like emitting `join`), only ever happens *after* the middleware
+chain resolves. Authenticating in `handleConnection` instead would have
+been a real, exploitable-by-nobody-but-still-wrong race: an async DB
+lookup racing a client's immediate `join` could make a legitimate
+participant's join fail exactly like an outsider's. An unauthenticated
+or invalid-session socket never completes its handshake — the client
+gets `connect_error`, never `connect`.
+
+| Client emits | Payload | Ack | Notes |
+|---|---|---|---|
+| `join` | `{ conversationId }` | `{ joined: boolean }` | Re-checks participation via `ChatService.isParticipant` on *every* call, never cached on the socket — membership can change (unmatch) for the lifetime of a long-held connection. Joins the room `conversation:<id>` only on `joined: true`. |
+| `leave` | `{ conversationId }` | `{ left: true }` | Always acknowledges; a no-op if `conversationId` is missing. |
+
+| Server emits | Payload | Notes |
+|---|---|---|
+| `message` | The same shape `POST /conversations/:id/messages` returns | Pushed to everyone currently joined to `conversation:<id>` the moment `ChatService.sendMessage` persists a new message — via the in-process domain-event bus (`DomainEventsService` → `EventEmitter2`), not a direct call from the REST controller into the gateway. |
+
+Verified against a real `socket.io-client` connection (not just mocks):
+cookie-based handshake auth (success, missing cookie, tampered cookie —
+all three exercised), join authorization for both an actual participant
+and an unrelated third user, and a live `message` event delivered to a
+joined socket when the other participant posts via REST.
 
 ## Not yet implemented
 
-Chat, map, block/report, and admin endpoints land in Phases 6–8 and will
-be documented here as each ships — see `ARCHITECTURE.md` for the phase
-list and status. Note that `ConnectionsService` already checks the
-`Block` table (in both directions) before letting a request go through,
-even though there is no endpoint yet to *create* a block — that lands in
+Map, block/report, and admin endpoints land in Phases 7–8 and will be
+documented here as each ships — see `ARCHITECTURE.md` for the phase list
+and status. Note that `ConnectionsService` already checks the `Block`
+table (in both directions) before letting a request go through, even
+though there is no endpoint yet to *create* a block — that lands in
 Phase 8.

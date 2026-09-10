@@ -33,6 +33,7 @@ describe('ConnectionsService', () => {
       upsert: jest.Mock;
       update: jest.Mock;
     };
+    conversation: { upsert: jest.Mock; findMany: jest.Mock };
     block: { findFirst: jest.Mock };
     profile: { findMany: jest.Mock };
     verification: { findMany: jest.Mock };
@@ -62,6 +63,10 @@ describe('ConnectionsService', () => {
         findUnique: jest.fn(),
         upsert: jest.fn(),
         update: jest.fn(),
+      },
+      conversation: {
+        upsert: jest.fn().mockResolvedValue({ id: 'conv-1' }),
+        findMany: jest.fn().mockResolvedValue([]),
       },
       block: { findFirst: jest.fn().mockResolvedValue(null) },
       profile: { findMany: jest.fn().mockResolvedValue([]) },
@@ -282,6 +287,7 @@ describe('ConnectionsService', () => {
       prisma.connectionRequest.findUnique.mockResolvedValue(pendingRequest);
       prisma.connectionRequest.updateMany.mockResolvedValue({ count: 1 });
       prisma.connection.upsert.mockResolvedValue({ id: 'conn-1' });
+      prisma.conversation.upsert.mockResolvedValue({ id: 'conv-1' });
 
       const result = await service.acceptRequest(RECIPIENT, 'req-1');
 
@@ -291,7 +297,22 @@ describe('ConnectionsService', () => {
         create: { userAId, userBId, activityId: ACTIVITY_ID },
         update: { removedAt: null },
       });
-      expect(result).toEqual({ connectionId: 'conn-1' });
+      expect(result).toEqual({ connectionId: 'conn-1', conversationId: 'conv-1' });
+    });
+
+    it('also upserts (not creates) the Conversation, so reviving an unmatched connection never double-creates one', async () => {
+      prisma.connectionRequest.findUnique.mockResolvedValue(pendingRequest);
+      prisma.connectionRequest.updateMany.mockResolvedValue({ count: 1 });
+      prisma.connection.upsert.mockResolvedValue({ id: 'conn-1' });
+      prisma.conversation.upsert.mockResolvedValue({ id: 'conv-1' });
+
+      await service.acceptRequest(RECIPIENT, 'req-1');
+
+      expect(prisma.conversation.upsert).toHaveBeenCalledWith({
+        where: { connectionId: 'conn-1' },
+        create: { connectionId: 'conn-1' },
+        update: {},
+      });
     });
 
     it('raises a conflict if the request was resolved concurrently inside the transaction', async () => {
@@ -400,14 +421,40 @@ describe('ConnectionsService', () => {
         { userId: RECIPIENT, firstName: 'Bhavesh', photoUrl: null },
         { userId: 'other-caller', firstName: 'Chetan', photoUrl: null },
       ]);
+      prisma.conversation.findMany.mockResolvedValue([
+        { id: 'conv-1', connectionId: 'conn-1' },
+        { id: 'conv-2', connectionId: 'conn-2' },
+      ]);
 
       const result = await service.listConnections(REQUESTER);
 
       expect(result.map((r) => r.otherUser.userId)).toEqual([RECIPIENT, 'other-caller']);
+      expect(result.map((r) => r.conversationId)).toEqual(['conv-1', 'conv-2']);
       expect(prisma.connection.findMany).toHaveBeenCalledWith({
         where: { OR: [{ userAId: REQUESTER }, { userBId: REQUESTER }], removedAt: null },
         orderBy: { createdAt: 'desc' },
       });
+    });
+
+    it('skips a row whose conversation cannot be loaded rather than emitting a null conversationId', async () => {
+      prisma.connection.findMany.mockResolvedValue([
+        {
+          id: 'conn-1',
+          userAId: REQUESTER,
+          userBId: RECIPIENT,
+          activityId: ACTIVITY_ID,
+          createdAt: new Date(),
+          removedAt: null,
+        },
+      ]);
+      prisma.activity.findMany.mockResolvedValue([{ id: ACTIVITY_ID, key: 'trekking' }]);
+      prisma.profile.findMany.mockResolvedValue([
+        { userId: RECIPIENT, firstName: 'Bhavesh', photoUrl: null },
+      ]);
+      prisma.conversation.findMany.mockResolvedValue([]); // no conversation row found
+
+      const result = await service.listConnections(REQUESTER);
+      expect(result).toEqual([]);
     });
 
     it('skips a row whose other-party profile cannot be loaded rather than throwing', async () => {
@@ -423,6 +470,7 @@ describe('ConnectionsService', () => {
       ]);
       prisma.activity.findMany.mockResolvedValue([{ id: ACTIVITY_ID, key: 'trekking' }]);
       prisma.profile.findMany.mockResolvedValue([]); // recipient has no profile row
+      prisma.conversation.findMany.mockResolvedValue([{ id: 'conv-1', connectionId: 'conn-1' }]);
 
       const result = await service.listConnections(REQUESTER);
       expect(result).toEqual([]);

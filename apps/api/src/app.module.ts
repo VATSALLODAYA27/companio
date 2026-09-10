@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { PrismaModule } from './prisma/prisma.module';
+import { DomainEventsModule } from './common/events/domain-events.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -12,6 +13,7 @@ import { ProfileModule } from './profile/profile.module';
 import { LocationModule } from './location/location.module';
 import { DiscoveryModule } from './discovery/discovery.module';
 import { ConnectionsModule } from './connections/connections.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -40,6 +42,7 @@ import { ConnectionsModule } from './connections/connections.module';
       }),
     }),
     PrismaModule,
+    DomainEventsModule,
     HealthModule,
     AuthModule,
     UsersModule,
@@ -48,6 +51,7 @@ import { ConnectionsModule } from './connections/connections.module';
     LocationModule,
     DiscoveryModule,
     ConnectionsModule,
+    ChatModule,
   ],
   providers: [
     // Registers ThrottlerGuard as a global guard so @Throttle() overrides

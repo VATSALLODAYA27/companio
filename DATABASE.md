@@ -172,6 +172,38 @@ unordered pair per activity. `scripts/phase5-connections-check.sql` §7
 demonstrates the un-sorted case actually inserting a second row, to make
 that risk concrete rather than theoretical.
 
+## Conversation and Message (Phase 6)
+
+`Conversation.connectionId` is `@unique` — a true 1:1 with `Connection`,
+not 1:N. There is exactly one conversation per connection for the
+lifetime of that connection, created eagerly by
+`ConnectionsService.acceptRequest` (an `upsert` inside the same
+transaction as the `Connection` upsert/revive) rather than lazily on
+first message — SECURITY.md §3's route design (`/conversations/:id/...`,
+resolved by walking `Conversation` → `Connection` → participant check)
+assumes a `conversationId` always already exists once a connection is
+active, so there is no "conversation not created yet" branch to handle
+anywhere in `ChatService` or `ChatController`.
+
+`Message.senderId` and `Message.conversationId` both cascade-delete from
+their respective parents at the schema level, verified live in
+`scripts/phase6-chat-check.sql` §5 (deleting a `Connection` row leaves
+zero orphaned `Conversation`/`Message` rows). In the running app this
+path never actually fires — unmatch is `Connection.removedAt` (a soft
+delete, see "Soft deletion" above and SECURITY.md §10), never a row
+`DELETE` — so this proves the schema's safety net works as a backstop,
+not something the API relies on for its normal unmatch flow. Message
+*history* stays fully readable (and mark-as-read stays functional) after
+`removedAt` is set; only `POST .../messages` (sending a new message) is
+rejected once a connection has ended.
+
+`markRead`'s update is intentionally one-directional —
+`WHERE "senderId" != $callerId AND "readAt" IS NULL` — so a caller
+marking a conversation read can only ever flip the *other* participant's
+messages to read, never their own; `scripts/phase6-chat-check.sql` §4
+demonstrates this against real rows rather than relying on the mocked
+unit tests alone.
+
 ## Migrations
 
 The initial migration (`prisma/migrations/20260909000000_init/`) is

@@ -101,7 +101,10 @@ export class ConnectionsService {
     return this.toRequestViews(rows, 'recipientId');
   }
 
-  async acceptRequest(recipientId: string, requestId: string): Promise<{ connectionId: string }> {
+  async acceptRequest(
+    recipientId: string,
+    requestId: string,
+  ): Promise<{ connectionId: string; conversationId: string }> {
     const request = await this.loadRequestForRecipient(recipientId, requestId);
 
     const [userAId, userBId] = [request.requesterId, request.recipientId].sort();
@@ -130,7 +133,21 @@ export class ConnectionsService {
         create: { userAId, userBId, activityId: request.activityId },
         update: { removedAt: null },
       });
-      return { connectionId: connection.id };
+
+      // Every Connection has exactly one Conversation (see DATABASE.md
+      // ERD) — created here, once, rather than lazily on first message,
+      // so Phase 6 (chat) never has to special-case "no conversation
+      // yet" and every connections-list response can always include a
+      // usable conversationId. Upsert because reviving a previously
+      // unmatched connection (above) must not try to create a second
+      // Conversation row for the same connectionId (unique constraint).
+      const conversation = await tx.conversation.upsert({
+        where: { connectionId: connection.id },
+        create: { connectionId: connection.id },
+        update: {},
+      });
+
+      return { connectionId: connection.id, conversationId: conversation.id };
     });
   }
 
@@ -179,20 +196,27 @@ export class ConnectionsService {
     const activityKeyById = await this.activityKeysById(rows.map((r) => r.activityId));
     const otherIds = rows.map((r) => (r.userAId === userId ? r.userBId : r.userAId));
     const counterparts = await this.loadCounterparts(otherIds);
+    const conversationIdByConnectionId = await this.conversationIdsByConnectionId(
+      rows.map((r) => r.id),
+    );
 
     return rows
       .map((r) => {
         const otherUserId = r.userAId === userId ? r.userBId : r.userAId;
         const otherUser = counterparts.get(otherUserId);
-        // Defensive: the other user's row is guaranteed by the FK, but a
-        // missing profile shouldn't crash the whole list.
-        if (!otherUser) {
+        const conversationId = conversationIdByConnectionId.get(r.id);
+        // Defensive: both the other user's profile and the conversation
+        // are guaranteed to exist in the normal flow (acceptRequest
+        // always creates both), but a missing one shouldn't crash the
+        // whole list — skip that row rather than 500 or emit a null id.
+        if (!otherUser || !conversationId) {
           return null;
         }
         return {
           id: r.id,
           activityKey: activityKeyById.get(r.activityId)!,
           createdAt: r.createdAt.toISOString(),
+          conversationId,
           otherUser,
         };
       })
@@ -278,6 +302,21 @@ export class ConnectionsService {
       select: { id: true, key: true },
     });
     return new Map(rows.map((r) => [r.id, r.key as ActivityKey]));
+  }
+
+  private async conversationIdsByConnectionId(
+    connectionIds: string[],
+  ): Promise<Map<string, string>> {
+    const unique = [...new Set(connectionIds)];
+    if (unique.length === 0) {
+      return new Map();
+    }
+    const rows: Array<{ id: string; connectionId: string }> =
+      await this.prisma.conversation.findMany({
+        where: { connectionId: { in: unique } },
+        select: { id: true, connectionId: true },
+      });
+    return new Map(rows.map((r) => [r.connectionId, r.id]));
   }
 
   /** Bulk-loads the public counterpart shape for a set of user ids in two queries, not N+1. */

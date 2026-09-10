@@ -122,5 +122,23 @@ export interface ConnectionView {
   id: string;
   activityKey: ActivityKey;
   createdAt: string;
+  // Always present — every Connection gets exactly one Conversation at
+  // the moment it's created (see ConnectionsService.acceptRequest) — so
+  // a client never has to handle "no conversation yet" before chatting.
+  conversationId: string;
   otherUser: ConnectionCounterpart;
+}
+
+// A single chat message, as returned by GET/POST
+// /conversations/:id/messages and pushed live over the 'message' socket
+// event. senderId is a plain userId — no more sensitive than the ids
+// already exposed by discovery/connections — so the client can tell
+// which side of the conversation each message belongs to.
+export interface MessageView {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  body: string;
+  sentAt: string;
+  readAt: string | null;
 }
