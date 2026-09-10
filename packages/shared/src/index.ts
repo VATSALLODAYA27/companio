@@ -170,3 +170,44 @@ export interface MessageView {
   sentAt: string;
   readAt: string | null;
 }
+
+// Block/report categories (Phase 8) — mirror prisma/schema.prisma's
+// ReportCategory/ReportStatus enums exactly; keep the two in sync by
+// hand, the same way every other fixed-set constant in this file does.
+export const REPORT_CATEGORY_VALUES = [
+  'HARASSMENT',
+  'SPAM',
+  'FAKE_PROFILE',
+  'INAPPROPRIATE_BEHAVIOR',
+  'SUSPICIOUS_ACTIVITY',
+  'OTHER',
+] as const;
+export type ReportCategory = (typeof REPORT_CATEGORY_VALUES)[number];
+
+export type ReportStatus = 'OPEN' | 'REVIEWING' | 'RESOLVED' | 'DISMISSED';
+
+// A user the caller has blocked. Only the fields useful for reviewing
+// and managing a block list — no verification badge, no activities;
+// this is a safety management view, not a discovery/profile view.
+// firstName/photoUrl are nullable because a blocked user's profile can
+// be incomplete (or, in principle, gone) without that breaking the
+// caller's ability to see and manage their own block list.
+export interface BlockedUserView {
+  userId: string;
+  firstName: string | null;
+  photoUrl: string | null;
+  blockedAt: string;
+}
+
+// A report the caller has filed. reportedUserId is the raw id, not a
+// resolved profile view — this is the reporter's own historical record
+// of who and what they reported, independent of whatever that person's
+// profile looks like now.
+export interface ReportView {
+  id: string;
+  reportedUserId: string;
+  category: ReportCategory;
+  details: string | null;
+  status: ReportStatus;
+  createdAt: string;
+}

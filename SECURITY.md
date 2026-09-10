@@ -133,6 +133,16 @@ TESTING.md).
 - Block relationships are enforced server-side in the discovery query
   itself (blocked users never appear in each other's results), not just
   hidden client-side.
+- **Block and report (Phase 8):** `POST /safety/blocks` relies on the
+  platform default limit — there is no realistic abuse gain from mass-
+  blocking. `POST /safety/reports` gets its own stricter limit
+  (`RATE_LIMIT_MAX_REPORTS`, default 5/min) since mass-filing false
+  reports against a target is a real harassment vector, the same
+  reasoning as the dedicated discovery/map limits above. Creating a
+  block proactively ends any active connection and declines any pending
+  connection request between the pair (see DATABASE.md "Block creation
+  side effects") — the block itself is the enforcement point, not a
+  flag other endpoints have to remember to check.
 
 ## 9. Logging Policy
 
@@ -157,7 +167,15 @@ correlation.
 - Reports/blocks involving the deleted account are retained in
   anonymized form for trust & safety continuity — this is a legitimate
   exception to full deletion and is disclosed in the privacy-facing
-  copy.
+  copy. **Current implementation gap:** the schema's `Block`/`Report`
+  rows today cascade-delete in full when a `User` row is deleted
+  (`onDelete: Cascade`), which does not yet implement the anonymized-
+  retention policy stated above. This is latent, not live — no
+  account-deletion endpoint exists yet in any shipped phase — and is
+  tracked explicitly in DATABASE.md "Block creation side effects" as
+  something whichever future phase adds account deletion needs to
+  address (nullable FK / `SetNull` / explicit anonymization), rather
+  than left as a silent surprise.
 
 ## 11. Incident Response Basics (prototype-level)
 

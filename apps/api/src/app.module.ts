@@ -15,6 +15,7 @@ import { DiscoveryModule } from './discovery/discovery.module';
 import { ConnectionsModule } from './connections/connections.module';
 import { ChatModule } from './chat/chat.module';
 import { MapModule } from './map/map.module';
+import { SafetyModule } from './safety/safety.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { MapModule } from './map/map.module';
     ConnectionsModule,
     ChatModule,
     MapModule,
+    SafetyModule,
   ],
   providers: [
     // Registers ThrottlerGuard as a global guard so @Throttle() overrides

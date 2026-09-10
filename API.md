@@ -172,11 +172,35 @@ shaped for rendering pins on a map instead of cards in a list.
 
 **`latitude`/`longitude` are always fuzzed, never real.** This is the one endpoint in the entire API that returns a lat/lng pair for a user other than the caller, and it is deliberately never the real one: each position is randomized by up to 150 m (`MAP_FUZZ_RADIUS_METERS` in `@companio/shared`), computed deterministically from `(viewer, target, calendar day)` — see `apps/api/src/map/location-fuzz.util.ts` and SECURITY.md §5. Practically: refreshing the map within the same day shows the same pin position (it doesn't jitter around), but two different viewers see two different fuzzed positions for the same target, and tomorrow's position for the same viewer/target pair will differ from today's. Verified against a live database (axis-order correctness — `ST_Y`/`ST_X` are easy to swap — see `scripts/phase7-map-check.sql`) and over real HTTP (fuzzed position within bound, stable across repeated calls the same day, and gone entirely once a block exists between the two users).
 
-## Not yet implemented
+## Safety (Phase 8)
 
-Block/report and admin endpoints land in Phase 8 and will be documented
-here once they ship — see `ARCHITECTURE.md` for the phase list and
-status. Note that `ConnectionsService` and `DiscoveryRepository`/
-`MapService` already check the `Block` table (in both directions)
-before letting a request through or a pin appear, even though there is
-no endpoint yet to *create* a block.
+Every route requires a session; the mutating ones (`POST`/`DELETE`) also
+require CSRF. Both blocking and reporting are always scoped to the
+caller as the acting party (`blockerId`/`reporterId` from the session,
+never the body) — a client can name a *target* but never act on another
+user's behalf.
+
+| Method | Path | Auth required | Notes |
+|---|---|---|---|
+| POST | `/safety/blocks` | yes + CSRF | Body: `{ blockedUserId }`. 400 if blocking yourself, 404 if the target doesn't exist. 409 if already blocked. Creating a block is **not just an insert** — in the same transaction it also ends any active `Connection` between the pair and declines any `PENDING` `ConnectionRequest` in either direction (see DATABASE.md "Block creation side effects"). Returns `{ blocked: true }`. |
+| GET | `/safety/blocks` | yes | The caller's own block list, newest first: `{ blocks: [{ userId, firstName, photoUrl, blockedAt }] }`. `firstName`/`photoUrl` are `null` if the blocked user's profile can no longer be resolved (never an error). |
+| DELETE | `/safety/blocks/:userId` | yes + CSRF | Unblocks — scoped to `blockerId = caller`, so you can only remove a block *you* created, never one the other person placed on you. 404 if no such block exists. Returns `{ unblocked: true }`. Unblocking does **not** restore the ended connection or revive the declined request — those stay ended; a fresh connection request would need to be sent again. |
+| POST | `/safety/reports` | yes + CSRF | Body: `{ reportedUserId, category, details? }`. `category` is one of `HARASSMENT \| SPAM \| FAKE_PROFILE \| INAPPROPRIATE_BEHAVIOR \| SUSPICIOUS_ACTIVITY \| OTHER`. `details` is optional free text, 0–1000 characters. 400 if reporting yourself, 404 if the target doesn't exist. Always created with `status: "OPEN"`. Rate-limited separately (`RATE_LIMIT_MAX_REPORTS`, default 5/min) — filing reports has a real mass-filing abuse vector that blocking doesn't. Returns the created report. |
+| GET | `/safety/reports` | yes | Reports **filed by** the caller, newest first: `{ reports: [{ id, reportedUserId, category, details, status, createdAt }] }`. Never includes reports filed *against* the caller — there is no route anywhere that lets a user see who reported them. |
+
+**Why blocking has no dedicated throttle but reporting does:** blocking
+someone has no meaningful abuse value to a malicious caller (there's
+nothing to gain from mass-blocking), so it relies on the platform
+default limit; filing many false reports against a target is a real
+harassment vector, so reports get their own stricter limit — same
+reasoning as `/discovery/nearby` and `/map/nearby`'s dedicated limits
+for a different kind of abuse (§5/§8 of SECURITY.md).
+
+**Closing the accept-after-block gap.** `ConnectionsService.acceptRequest`
+never re-checks the `Block` table itself — only `sendRequest` did, prior
+to Phase 8. Rather than adding a second check there, `SafetyService.createBlock`
+closes the gap *by construction*: the moment a block is created, every
+`PENDING` request between the pair is atomically declined in the same
+transaction, so there is no longer a pending request left for
+`acceptRequest` to ever see. See DATABASE.md and the service's own
+docblock for the full reasoning.

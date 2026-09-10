@@ -267,6 +267,91 @@ messages to read, never their own; `scripts/phase6-chat-check.sql` §4
 demonstrates this against real rows rather than relying on the mocked
 unit tests alone.
 
+## Block creation side effects (Phase 8)
+
+`SafetyService.createBlock` is a single Prisma `$transaction` (the array
+form — no intermediate result needs to be read between steps) with three
+operations, not a plain insert:
+
+```ts
+this.prisma.$transaction([
+  this.prisma.block.create({ data: { blockerId, blockedId } }),
+  this.prisma.connection.updateMany({
+    where: { userAId: sortedA, userBId: sortedB, removedAt: null },
+    data: { removedAt: new Date() },
+  }),
+  this.prisma.connectionRequest.updateMany({
+    where: {
+      status: 'PENDING',
+      OR: [
+        { requesterId: blockerId, recipientId: blockedId },
+        { requesterId: blockedId, recipientId: blockerId },
+      ],
+    },
+    data: { status: 'DECLINED', respondedAt: new Date() },
+  }),
+]);
+```
+
+**Why this needs to be transactional and proactive, not a follow-up
+cleanup step.** `ConnectionsService.acceptRequest` has never itself
+re-checked the `Block` table — only `sendRequest`'s `isEligibleRecipient`
+does (Phase 5). Before Phase 8, that was fine: there was no way to
+create a block *after* a request was already sent, so the gap was
+theoretical. Once blocking exists, it isn't: user A could send a
+request, user B could block A a moment later, and without this
+transaction, B's still-`PENDING` request from A would remain acceptable
+by B in a later, confused session — a block that doesn't actually stop
+the person it names. Rather than adding a second, easy-to-forget guard
+inside `acceptRequest` (or scattering the check across every place a
+connection or request is read), `createBlock` closes the gap by
+construction: the instant a block exists, there is no longer a pending
+request or an active connection left for the rest of the app to act on
+inconsistently. This mirrors the "queries the domain table directly
+rather than importing the owning module" pattern used elsewhere (see
+ARCHITECTURE.md's `safety/` bullet) — `SafetyModule` does not import
+`ConnectionsModule` for this.
+
+**Not activity-scoped.** The `connection.updateMany` above matches on
+`(userAId, userBId)` alone, not a third `activityId` clause — a block
+between two people ends *every* connection between that pair, regardless
+of how many different activities they were separately connected for.
+Similarly the `connectionRequest.updateMany` declines every pending
+request in either direction, for any activity. A block is a statement
+about not wanting contact with a specific person at all, not about one
+activity. Verified against a live database in
+`scripts/phase8-safety-check.sql` §3/§4 with a two-activity, two-pending-
+request fixture, and over real HTTP with a real accepted connection and
+a real still-pending request.
+
+**Unblocking does not undo either side effect.** `removeBlock` only
+deletes the `(blockerId, blockedId)` block row — the ended connection
+stays ended (`removedAt` is never cleared) and the declined request
+stays `DECLINED`. A fresh connection request has to be sent and accepted
+again from scratch. This is a deliberate simplicity choice for the
+prototype, not an oversight: silently reviving a connection or request
+on unblock would be a surprising side effect for a "just let me undo a
+block" action.
+
+**Known gap: blocks/reports and account-deletion retention.** Both
+`Block` and `Report` have `onDelete: Cascade` on their `User` relations
+in `schema.prisma` today, meaning deleting a `User` row cascades away
+every block and report that user was party to, in full — verified
+(illustrated, not asserted as a pass/fail check) in
+`scripts/phase8-safety-check.sql` §8. This directly contradicts
+SECURITY.md §10's stated policy that "reports/blocks involving the
+deleted account are retained in anonymized form for trust & safety
+continuity." The contradiction is latent rather than live: no
+account-deletion endpoint exists anywhere in this codebase yet (it
+isn't one of the 11 planned phases as currently scoped), so nothing
+today can actually trigger the cascade in production use. It is flagged
+here deliberately, the same judgment call as the map-fuzzing residual
+risk above, rather than silently fixed with a bigger schema change
+(nullable FK columns, `onDelete: SetNull`, an explicit anonymization
+step) that itself needs dedicated design work — that work belongs to
+whichever future phase actually implements account deletion, which
+should update this section once it does.
+
 ## Migrations
 
 The initial migration (`prisma/migrations/20260909000000_init/`) is

@@ -6,21 +6,23 @@ accounts, AI recommendations, events, or tourism features.
 
 ## Status
 
-**Phases 1–7 complete:** project scaffold, database schema, security
+**Phases 1–8 complete:** project scaffold, database schema, security
 model, authentication (Google OAuth + email/password, sessions, CSRF,
 rate limiting), profile CRUD + activity selection + verification badge
 display, location + nearby discovery (1 km default radius, one indexed
 PostGIS query, distance shown only as a bucketed label — see
 `DATABASE.md`), connection requests (send/accept/decline/cancel, list
 connections, unmatch — duplicate-request spam blocked at the database
-level, block relationships already respected even though there's no way
-to create one yet), chat — REST message history/send/read-receipts plus
-a Socket.IO gateway for live delivery, both scoped to the two
-participants of a conversation (see `API.md` "Chat") — and the map:
-`GET /map/nearby` returns the same nearby matches as discovery, but with
-a position on each pin that's always randomized within ~150 m and never
-the real coordinate (see `API.md` "Map"). Safety/privacy (block/report)
-is not implemented yet — see `ARCHITECTURE.md` for the phase plan.
+level), chat — REST message history/send/read-receipts plus a Socket.IO
+gateway for live delivery, both scoped to the two participants of a
+conversation (see `API.md` "Chat") — the map: `GET /map/nearby` returns
+the same nearby matches as discovery, but with a position on each pin
+that's always randomized within ~150 m and never the real coordinate
+(see `API.md` "Map") — and safety/privacy: block and report (`/safety/*`),
+where creating a block proactively ends any active connection and
+declines any pending connection request between the pair, not just a
+flag other endpoints have to separately check (see `API.md` "Safety").
+See `ARCHITECTURE.md` for the remaining phase plan.
 
 **Everything works with free-tier tools only.** Email/password login
 needs no external setup at all. Google OAuth needs a client ID/secret
@@ -222,6 +224,46 @@ doesn't run cookie-parser, so the raw `companio_sid=...` cookie value is
 what the server expects — see `API.md` "WebSocket gateway"), emit
 `join` with `{ conversationId }`, and you'll receive a `message` event
 the instant the other participant posts one over REST — no polling.
+
+## Manually testing safety (block/report, needs two logged-in users)
+
+Continuing from the connections walkthrough above (`cookies.txt` /
+`cookies2.txt`, `OTHER_USER_ID`):
+
+```bash
+CSRF_TOKEN=$(curl -s -c cookies.txt -b cookies.txt http://localhost:4000/api/v1/auth/csrf | python3 -c "import sys,json;print(json.load(sys.stdin)['csrfToken'])")
+
+# User 1 blocks user 2 — this also ends any active connection between
+# them and declines any still-pending request in either direction, in
+# the same transaction (see API.md "Safety" and DATABASE.md "Block
+# creation side effects")
+curl -i -b cookies.txt -X POST http://localhost:4000/api/v1/safety/blocks \
+  -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF_TOKEN" \
+  -d "{\"blockedUserId\":\"$OTHER_USER_ID\"}"
+
+# User 2 has now disappeared from user 1's discovery/map results, and
+# from user 1's connection list
+curl -s -b cookies.txt "http://localhost:4000/api/v1/discovery/nearby?activityKey=trekking"
+curl -s -b cookies.txt http://localhost:4000/api/v1/connections
+
+# User 1's own block list
+curl -s -b cookies.txt http://localhost:4000/api/v1/safety/blocks
+
+# Undo it — this does NOT revive the ended connection or the declined
+# request, only removes the block itself
+curl -i -b cookies.txt -X DELETE http://localhost:4000/api/v1/safety/blocks/$OTHER_USER_ID -H "X-CSRF-Token: $CSRF_TOKEN"
+
+# User 2 files a report against user 1 (works regardless of block state)
+CSRF2=$(curl -s -c cookies2.txt -b cookies2.txt http://localhost:4000/api/v1/auth/csrf | python3 -c "import sys,json;print(json.load(sys.stdin)['csrfToken'])")
+ME=$(curl -s -b cookies.txt http://localhost:4000/api/v1/auth/session | python3 -c "import sys,json;print(json.load(sys.stdin)['userId'])")
+curl -i -b cookies2.txt -X POST http://localhost:4000/api/v1/safety/reports \
+  -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF2" \
+  -d "{\"reportedUserId\":\"$ME\",\"category\":\"HARASSMENT\",\"details\":\"example report\"}"
+
+# User 2 sees their own filed report; user 1 never sees reports filed against them
+curl -s -b cookies2.txt http://localhost:4000/api/v1/safety/reports
+curl -s -b cookies.txt http://localhost:4000/api/v1/safety/reports
+```
 
 ## Documentation index
 
