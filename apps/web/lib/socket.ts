@@ -17,7 +17,12 @@ let socket: Socket | null = null;
 
 export function getSocket(): Socket {
   if (!socket) {
-    socket = io(WS_BASE_URL, {
+    // `WS_BASE_URL` is '' when NEXT_PUBLIC_API_BASE_URL is a same-origin
+    // relative path (the free-tier deployment behind server.js's proxy —
+    // see that file). socket.io-client treats an empty string as a real
+    // (invalid) URL to parse, not "use the current origin" — only
+    // `undefined` gets that behavior — so translate '' to `undefined`.
+    socket = io(WS_BASE_URL || undefined, {
       withCredentials: true,
       autoConnect: false,
       transports: ['websocket', 'polling'],

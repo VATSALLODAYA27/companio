@@ -22,6 +22,20 @@ if (mode !== 'dev' && mode !== 'start') {
   process.exit(1);
 }
 
+// Free-tier deployment (DEPLOYMENT.md): when API_PROXY_TARGET is set,
+// `start` runs the custom same-origin-proxying server (../server.js)
+// instead of plain `next start` — see that file's header comment for why.
+// `dev` never needs this (see server.js's comment on why local dev is
+// unaffected), so it always runs plain `next dev`.
+if (mode === 'start' && process.env.API_PROXY_TARGET) {
+  const result = spawnSync(process.execPath, [path.join(__dirname, '..', 'server.js')], {
+    stdio: 'inherit',
+    cwd: path.join(__dirname, '..'),
+    env: process.env,
+  });
+  process.exit(result.status === null ? 1 : result.status);
+}
+
 const port = process.env.WEB_PORT || '3000';
 const nextBin = require.resolve('next/dist/bin/next');
 

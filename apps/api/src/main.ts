@@ -47,8 +47,14 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api/v1', { exclude: ['health'] });
 
-  const port = Number(configService.get('API_PORT') ?? 4000);
-  await app.listen(port);
+  // `PORT` takes priority over `API_PORT`: Render (and most PaaS free
+  // tiers) inject PORT and require the app to bind to it — see
+  // DEPLOYMENT.md's "Free-tier deployment" section. Local dev never sets
+  // PORT, so API_PORT (defaulting to 4000) still governs there exactly as
+  // before. Binding to 0.0.0.0 explicitly (not just the port) so the
+  // container accepts connections from outside its own network namespace.
+  const port = Number(configService.get('PORT') ?? configService.get('API_PORT') ?? 4000);
+  await app.listen(port, '0.0.0.0');
   // eslint-disable-next-line no-console
   console.log(`Companio API listening on port ${port}`);
 }

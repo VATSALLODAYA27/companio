@@ -25,23 +25,32 @@ import { SafetyModule } from './safety/safety.module';
     }),
     // Global default rate limit; individual routes (e.g. /auth/*,
     // /discovery/nearby) override this with stricter per-route limits
-    // (see @Throttle() usage in AuthController). Redis-backed so limits
-    // are shared across API instances once there is more than one — an
-    // in-memory counter would let an attacker reset their limit just by
-    // hitting a different instance behind the load balancer.
+    // (see @Throttle() usage in AuthController). Redis-backed storage
+    // shares limits across API instances once there is more than one —
+    // an in-memory counter would let an attacker reset their limit just
+    // by hitting a different instance behind the load balancer — but
+    // that only matters once you actually run more than one instance.
+    // REDIS_URL is optional for exactly that reason: the free-tier
+    // deployment (DEPLOYMENT.md) runs a single instance with no Redis at
+    // all, and Nest's ThrottlerModule already defaults to an in-memory
+    // ThrottlerStorageService when no `storage` is given, so this just
+    // doesn't override that default when REDIS_URL is unset rather than
+    // falling back to a localhost URL that wouldn't exist in that
+    // deployment anyway.
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        throttlers: [
-          {
-            ttl: Number(config.get('RATE_LIMIT_TTL_SECONDS') ?? 60) * 1000,
-            limit: Number(config.get('RATE_LIMIT_MAX_DEFAULT') ?? 100),
-          },
-        ],
-        storage: new ThrottlerStorageRedisService(
-          config.get<string>('REDIS_URL') ?? 'redis://localhost:6379',
-        ),
-      }),
+      useFactory: (config: ConfigService) => {
+        const redisUrl = config.get<string>('REDIS_URL');
+        return {
+          throttlers: [
+            {
+              ttl: Number(config.get('RATE_LIMIT_TTL_SECONDS') ?? 60) * 1000,
+              limit: Number(config.get('RATE_LIMIT_MAX_DEFAULT') ?? 100),
+            },
+          ],
+          ...(redisUrl ? { storage: new ThrottlerStorageRedisService(redisUrl) } : {}),
+        };
+      },
     }),
     PrismaModule,
     DomainEventsModule,

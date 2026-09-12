@@ -5,11 +5,13 @@ const nextConfig = {
   // calls the API over HTTPS. Nothing here should ever need a service
   // credential.
 
-  // Phase 11 (deployment): emit a minimal, self-contained `.next/standalone`
-  // build (server + only the node_modules it actually traced/uses) so the
-  // runtime Docker image doesn't need the full node_modules tree. See
-  // apps/web/Dockerfile.
-  output: 'standalone',
+  // Phase 12 (free-tier deployment) runs a custom server (server.js) in
+  // front of Next so it can proxy /api/v1 and /socket.io to the API
+  // service — see server.js's header comment for why. Next's `standalone`
+  // output only reliably traces its own generated server, not a custom
+  // one sitting in front of it, so this image ships the full node_modules
+  // tree instead (the same accepted tradeoff apps/api/Dockerfile already
+  // makes, for the same reason — see that Dockerfile's comment).
 };
 
 module.exports = nextConfig;

@@ -1,4 +1,4 @@
-# Companio Web — production image (Phase 11)
+# Companio Web — production image (Phase 12: free-tier deployment)
 #
 # Build context is the REPO ROOT (npm-workspaces monorepo — see
 # apps/api/Dockerfile's header comment for the full explanation of why).
@@ -8,29 +8,22 @@
 #
 # Two stages:
 #   1. `build`   — full npm workspace install, builds packages/shared, then
-#                  `next build` with `output: 'standalone'`
-#                  (apps/web/next.config.js) — Next.js traces the actual
-#                  runtime import graph and emits a minimal, self-contained
-#                  server + node_modules subset under .next/standalone,
-#                  rather than needing the whole workspace node_modules at
-#                  runtime.
-#   2. `runtime` — copies only that standalone output, plus the two things
-#                  it deliberately excludes: .next/static (hashed JS/CSS
-#                  assets) and public/ (this project's is currently just a
-#                  placeholder — see apps/web/public/.gitkeep).
+#                  `next build`.
+#   2. `runtime` — copies the ENTIRE /app directory from `build` wholesale
+#                  (full node_modules, not a pruned/standalone subset) —
+#                  same tradeoff apps/api/Dockerfile already makes and
+#                  documents, for the same reasons. This app now runs a
+#                  custom server (server.js) in front of Next so it can
+#                  proxy /api/v1 and /socket.io to the API service — see
+#                  server.js's own header comment for why that exists —
+#                  and Next's `output: 'standalone'` tracing only reliably
+#                  covers Next's own generated server, not a custom one
+#                  sitting in front of it, so this image doesn't use it.
 #
-# In this npm-workspaces layout, Next.js's standalone output preserves the
-# path from the workspace root (where package-lock.json lives) down to the
-# app: the entrypoint lands at .next/standalone/apps/web/server.js, not at
-# .next/standalone/server.js. Verified by actually running `next build` in
-# this repo (see DEPLOYMENT.md's Phase 11 verification notes) — this is
-# not the layout you get building apps/web as a standalone (non-workspace)
-# Next.js project, so don't copy this Dockerfile into a non-monorepo
-# project without re-checking that path.
-#
-# apps/web never touches the database, Redis, or any secret (see the
-# comment in next.config.js) — it only calls the API over HTTPS from the
-# browser, so this image needs no DATABASE_URL/SESSION_SECRET/etc at all.
+# apps/web never touches the database or holds a secret of its own — it
+# only proxies to the API server-to-server (server.js) and calls it from
+# the browser under one shared origin — so this image needs no
+# DATABASE_URL/SESSION_SECRET/etc, only API_PROXY_TARGET (see server.js).
 
 FROM node:20-alpine AS build
 WORKDIR /app
@@ -53,27 +46,17 @@ WORKDIR /app
 
 RUN addgroup -S companio && adduser -S companio -G companio
 
-COPY --from=build --chown=companio:companio /app/apps/web/.next/standalone ./
-COPY --from=build --chown=companio:companio /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=build --chown=companio:companio /app/apps/web/public ./apps/web/public
+COPY --from=build --chown=companio:companio /app ./
 
 ENV NODE_ENV=production
-# Next's generated standalone server.js reads PORT/HOSTNAME directly (not
-# this project's dev-only WEB_PORT convention — see apps/web/package.json's
-# `dev`/`start` scripts, which don't apply to this generated entrypoint).
-# 0.0.0.0 so the container accepts connections from outside its own netns.
-ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
+# server.js reads WEB_PORT (falls back to 3000) — see apps/web/server.js
+# and scripts/serve.js for the shared convention with local dev.
+ENV WEB_PORT=3000
 
 USER companio
 EXPOSE 3000
 
-# No API route / health endpoint exists on the web app itself (it's a
-# static-ish Next app with no server-side data needs yet — see
-# next.config.js's comment) — a plain GET of `/` is the closest thing to a
-# meaningful liveness check without inventing a route this phase doesn't
-# otherwise need.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD node -e "require('http').get({host:'127.0.0.1',port:process.env.PORT||3000,path:'/'},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+  CMD node -e "require('http').get({host:'127.0.0.1',port:process.env.WEB_PORT||3000,path:'/'},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
 
 CMD ["node", "apps/web/server.js"]

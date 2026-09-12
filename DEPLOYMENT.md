@@ -208,13 +208,140 @@ why that specific detail matters) and the real scheme, and make sure the
 proxy — not a browser — is what enforces HTTPS-only via HSTS if you want
 that.
 
+## Free-tier deployment (Neon + Render)
+
+This is the concrete, actually-built-and-verified free path (Phase 12).
+Unlike the "Deploying to a managed platform" section below — written
+before this phase, deliberately softer/speculative — every claim here was
+checked against each platform's current (September 2026) docs and the
+architecture was run end-to-end in this project's own build sandbox
+(register → session cookie → authenticated API calls → Socket.IO
+handshake, all through the exact proxy path described below) before
+being written down. Re-check the linked pages before relying on a
+specific number (free-tier limits do change), but the architecture and
+the two problems it solves are not going to go stale the way a price is.
+
+**Why not just point the browser straight at two separate services.**
+Render (like Vercel, Netlify, and most PaaS free tiers) puts every
+customer's subdomain on the Public Suffix List, specifically so that
+`your-api.onrender.com` and `your-web.onrender.com` are treated as two
+different *sites*, not just two different origins on the same site. This
+app's session cookie is `SameSite=Lax` (see
+`apps/api/src/auth/auth.controller.ts`) — deliberately not loosened to
+`None`, because a `None` cookie would still be silently dropped by
+Safari/iOS's default third-party-cookie blocking regardless. A `Lax`
+cookie is never attached to a cross-site `fetch()`/XHR call, so a
+straight two-origin deployment would let login *appear* to succeed (the
+`Set-Cookie` response is still honored) while every call after that
+silently looked logged-out. The fix (`apps/web/server.js`, added this
+phase) is architectural, not a cookie-flag tweak: the web service runs a
+small custom Node server in front of Next.js that proxies `/api/v1/*`
+and `/socket.io/*` straight through to the API service's URL,
+server-to-server, so the *browser* only ever talks to one origin. See
+that file's own header comment for the full reasoning.
+
+**Why no Redis.** Redis in this project exists for exactly one thing —
+sharing rate-limit counters across more than one API instance (see the
+comment in `apps/api/src/app.module.ts`). A single free-tier instance has
+nothing to share counters with, so `REDIS_URL` is now optional: leaving
+it unset makes the API fall back to Nest's built-in in-memory throttler
+storage, which is exactly as correct as Redis-backed storage for exactly
+one running instance. This removes a whole service (and its own
+sign-up/connection-string/TLS fiddling) from the free-tier path. If a
+later phase actually runs more than one API instance, set `REDIS_URL`
+(Upstash's free tier — 256 MB, ~500K commands/month as of September
+2026 — is the natural fit) and the Redis-backed path is unchanged.
+
+**The stack:**
+
+- **Database — [Neon](https://neon.com)**: serverless Postgres with a
+  genuine free tier (no forced expiry/deletion the way Render's free
+  Postgres now auto-deletes after 30 days — confirmed via Render's own
+  changelog while researching this). PostGIS installs on any Neon
+  project with a plain `CREATE EXTENSION postgis;` — no special plan
+  required.
+- **API — [Render](https://render.com) Web Service, built from
+  `apps/api/Dockerfile`.** Free tier: 512 MB RAM, sleeps after ~15
+  minutes idle (a request after that pays a one-time cold-start delay
+  while it wakes up — fine for a prototype, not for anything latency-
+  sensitive). Render injects a `PORT` env var the app must bind to;
+  `apps/api/src/main.ts` already prefers `PORT` over `API_PORT` for
+  exactly this reason.
+- **Web — a second Render Web Service, built from
+  `apps/web/Dockerfile`.** Runs `apps/web/server.js` (see above), which
+  needs one new env var: `API_PROXY_TARGET` set to the API service's own
+  `https://…onrender.com` URL. Same `PORT`-over-`WEB_PORT` handling as
+  the API.
+
+### Steps
+
+1. **Push this repo to GitHub** (Render deploys from a git repo — see
+   "Getting this repo onto GitHub" below if there's no remote yet).
+
+2. **Neon**: create a free project → open its SQL editor or `psql` and
+   run `CREATE EXTENSION IF NOT EXISTS postgis;` → copy the connection
+   string it gives you (already in the `postgresql://…` shape
+   `DATABASE_URL` expects — Neon's connection strings need
+   `?sslmode=require` appended if it isn't already there).
+
+3. **Render — API service**: New → Web Service → connect the repo →
+   "Dockerfile" as the runtime, Dockerfile path `apps/api/Dockerfile`,
+   Docker build context `.` (repo root — required, see that Dockerfile's
+   own comment on why). Environment variables: everything
+   `.env.prod.example` lists as required for the API, using the Neon
+   connection string for `DATABASE_URL`, **no `REDIS_URL`**, and
+   `CORS_ALLOWED_ORIGIN` set once the web service's URL is known (step 5
+   — Render assigns the URL before you set this, so it's fine to
+   circle back). Once it's live, run the migration once against Neon —
+   easiest from a machine with normal internet access (this project's
+   own build sandbox blocks the host Prisma's migrate CLI needs, per
+   "Migration strategy" above, but a real dev machine or Render's own
+   Shell tab won't be blocked): `DATABASE_URL="<neon-connection-string>"
+   npx prisma migrate deploy` from `apps/api/`, then `npm run
+   prisma:seed` the same way to load the fixed activity list.
+
+4. **Render — Web service**: New → Web Service → same repo, Dockerfile
+   path `apps/web/Dockerfile`, build context `.`. Environment variables:
+   just `API_PROXY_TARGET` = the API service's `https://…onrender.com`
+   URL from step 3.
+
+5. **Circle back to the API service's `CORS_ALLOWED_ORIGIN`** and set it
+   to the web service's own `https://…onrender.com` URL (exact match,
+   no trailing slash), then redeploy the API. This CORS setting is now
+   mostly a formality — the browser never calls the API directly once
+   the proxy is in place — but it's what `apps/api/src/main.ts`'s CORS
+   allowlist checks, and it's worth keeping accurate.
+
+6. **Verify**: open the web service's URL, register an account, set up a
+   profile, and confirm Discover/Map/Connections/Chat all work — this
+   exercises the exact same proxy path (`/api/v1/*` REST +
+   `/socket.io/*` WebSocket) that was verified locally while building
+   this phase.
+
+### Getting this repo onto GitHub
+
+If this repo has no `git remote` yet: create an empty repository on
+GitHub (github.com → New repository — don't initialize it with a
+README/`.gitignore`, this repo already has both), then from the repo
+root:
+
+```bash
+git remote add origin https://github.com/<your-username>/<repo-name>.git
+git push -u origin master
+```
+
+(Or `main`, matching whatever this repo's default branch is actually
+called — check with `git branch --show-current` first.)
+
 ## Deploying to a managed platform
 
-All three of these support deploying an arbitrary Dockerfile and offer
-managed Postgres and Redis/key-value, which is what this project needs.
-Specifics — free-tier limits and pricing — change often; the figures
-below are what each platform's own docs showed as of September 2026;
-verify against the linked page before relying on them.
+The section above is the concrete, verified path; this one predates it
+and is kept for anyone who wants to compare alternatives or self-host on
+one of these instead. All three of these support deploying an arbitrary
+Dockerfile and offer managed Postgres and Redis/key-value, which is what
+this project needs. Specifics — free-tier limits and pricing — change
+often; the figures below are what each platform's own docs showed as of
+September 2026; verify against the linked page before relying on them.
 
 - **[Render](https://render.com/pricing)** — free web-service tier
   exists (512 MB RAM, shared CPU) but Render's own docs describe it as
