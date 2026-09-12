@@ -2,6 +2,15 @@
  * Seeds the fixed activity list. Activities are reference data, not
  * user-generated content, so they are safe to seed idempotently.
  */
+// This script runs standalone via `ts-node` (see package.json's
+// prisma:seed script), not through the Nest app or the Prisma CLI — so
+// nothing else loads `.env` into process.env before the DATABASE_URL
+// read below. Same root cause/fix as prisma.config.ts's own
+// `import 'dotenv/config'` — see the comment there for the full
+// explanation. Without this line, `npm run prisma:seed` fails with
+// "Error: DATABASE_URL is not set" even with a correctly filled-in
+// `.env` present.
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
