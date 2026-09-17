@@ -23,7 +23,14 @@ async function bootstrap() {
   // address instead of the real client's -- which throws off anything
   // keyed by client IP (the throttler guard) and any secure-cookie/https
   // check. `1` trusts exactly one hop, matching Render's own edge.
-  app.set('trust proxy', 1);
+  //
+  // NestFactory.create(AppModule, {...}) without an explicit generic
+  // returns INestApplication, which does NOT expose Express's own `.set()`
+  // -- only NestExpressApplication does. Reaching through
+  // getHttpAdapter().getInstance() gets the real underlying Express `app`
+  // instance (which does have `.set()`) without needing to change the
+  // type NestFactory.create is called with anywhere else in this file.
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
   // Security headers
   app.use(helmet());
