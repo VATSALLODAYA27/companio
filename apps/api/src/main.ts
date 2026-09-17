@@ -16,6 +16,15 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
 
+  // Render (and Cloudflare in front of it) terminate TLS and proxy every
+  // request to this container over plain HTTP internally. Without telling
+  // Express to trust that one hop, req.secure/req.protocol report http
+  // even on a real https:// request, and req.ip reports the proxy's own
+  // address instead of the real client's -- which throws off anything
+  // keyed by client IP (the throttler guard) and any secure-cookie/https
+  // check. `1` trusts exactly one hop, matching Render's own edge.
+  app.set('trust proxy', 1);
+
   // Security headers
   app.use(helmet());
   // Cookies are signed with SESSION_SECRET so a tampered session/CSRF

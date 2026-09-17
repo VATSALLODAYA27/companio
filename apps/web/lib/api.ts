@@ -35,12 +35,55 @@ export class ApiError extends Error {
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// 502/503/504 mean a gateway/proxy problem, not the app rejecting the
+// request -- on Render's free tier this is almost always one of the two
+// services (this proxy's own target, or the proxy itself) still finishing
+// its cold-start wake-up after ~15 minutes idle, which can briefly outlast
+// a single request. A thrown fetch (network/DNS blip, connection reset --
+// also more common on flaky mobile networks) is the same class of
+// transient failure. Retrying those few times with a short backoff clears
+// almost all of them without the user ever seeing an error; everything
+// else (4xx, a real 500) is a genuine failure and is never retried here.
+const RETRYABLE_STATUS = new Set([502, 503, 504]);
+
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  attempts = 3,
+): Promise<Response> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    if (attempt > 0) {
+      await sleep(800 * attempt);
+    }
+    try {
+      const res = await fetch(url, init);
+      if (RETRYABLE_STATUS.has(res.status) && attempt < attempts - 1) {
+        continue;
+      }
+      return res;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr;
+}
+
 let csrfTokenPromise: Promise<string> | null = null;
 
 async function fetchCsrfToken(): Promise<string> {
-  const res = await fetch(`${API_BASE_URL}/auth/csrf`, {
-    credentials: 'include',
-  });
+  let res: Response;
+  try {
+    res = await fetchWithRetry(`${API_BASE_URL}/auth/csrf`, {
+      credentials: 'include',
+    });
+  } catch {
+    throw new ApiError(0, 'Could not prepare a secure request. Please retry.');
+  }
   if (!res.ok) {
     throw new ApiError(res.status, 'Could not prepare a secure request. Please retry.');
   }
@@ -88,12 +131,17 @@ async function request<T>(
     headers['X-CSRF-Token'] = await ensureCsrfToken();
   }
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers,
-    body: payload,
-    credentials: 'include',
-  });
+  let res: Response;
+  try {
+    res = await fetchWithRetry(`${API_BASE_URL}${path}`, {
+      method,
+      headers,
+      body: payload,
+      credentials: 'include',
+    });
+  } catch {
+    throw new ApiError(0, 'Could not reach the server. Please check your connection and retry.');
+  }
 
   // A stale/rotated CSRF cookie is the one failure mode worth a single
   // transparent retry — everything else (401/403 for a real auth
