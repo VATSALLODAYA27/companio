@@ -28,11 +28,17 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
+# --ignore-scripts here, and only here: the root package.json's
+# `postinstall` runs `npm run build --workspace=packages/shared`, which
+# needs that package's actual source (not yet copied at this point in the
+# image) — see apps/api/Dockerfile's copy of this same comment for the
+# full explanation. The explicit build below (once source is copied in)
+# already covers it.
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/package.json
 COPY apps/api/package.json apps/api/package.json
 COPY packages/shared/package.json packages/shared/package.json
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 COPY packages/shared ./packages/shared
 COPY apps/web ./apps/web
@@ -57,6 +63,6 @@ USER companio
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD node -e "require('http').get({host:'127.0.0.1',port:process.env.WEB_PORT||3000,path:'/'},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+  CMD node -e "require('http').get({host:'127.0.0.1',port:process.env.PORT||process.env.WEB_PORT||3000,path:'/'},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
 
 CMD ["node", "apps/web/server.js"]

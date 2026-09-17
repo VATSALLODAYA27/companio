@@ -48,11 +48,23 @@ WORKDIR /app
 
 # Install the full workspace dependency graph first, from manifests only,
 # so this layer stays cached across source-only changes.
+#
+# --ignore-scripts here, and only here: the root package.json's
+# `postinstall` runs `npm run build --workspace=packages/shared`, which
+# needs that package's actual TypeScript source (tsconfig.json included)
+# to exist — and at this point in the image only package.json files have
+# been copied in, not source. Without --ignore-scripts this `npm ci`
+# fails outright (`tsc`: "the specified path does not exist:
+# tsconfig.json") before a single line of app code is even in the image —
+# caught the hard way via a real Render build, this project's own sandbox
+# never runs an actual `docker build` to catch it locally. The build below
+# already runs `npm run build --workspace=packages/shared` explicitly once
+# real source is copied in, so skipping it here loses nothing.
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 # Bring in the rest of what's needed to generate the Prisma Client and
 # build. Everything .dockerignore excludes (node_modules, dist/.next,
@@ -110,6 +122,6 @@ EXPOSE 4000
 # apps/api/src/health/health.controller.ts. No curl/wget in node:alpine, so
 # use Node itself.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "require('http').get({host:'127.0.0.1',port:process.env.API_PORT||4000,path:'/health'},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+  CMD node -e "require('http').get({host:'127.0.0.1',port:process.env.PORT||process.env.API_PORT||4000,path:'/health'},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
 
 CMD ["node", "apps/api/dist/main.js"]
