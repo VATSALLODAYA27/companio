@@ -43,6 +43,18 @@ RUN npm ci --ignore-scripts
 COPY packages/shared ./packages/shared
 COPY apps/web ./apps/web
 
+# Next.js inlines every NEXT_PUBLIC_* var into the client JS bundle at
+# BUILD time, not at container start -- so this can't be a normal runtime
+# ENV set later by Render, it must be present here, before `next build`
+# runs. Empty string (not unset) is deliberate: lib/api.ts does
+# `process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v1'`,
+# and only an explicit "" (not undefined) satisfies that nullish check to
+# produce a same-origin relative path, which is what server.js's proxy
+# requires (see server.js's header comment). Leaving this unset was a real
+# bug: the bundle silently fell back to localhost:4000, which is
+# unreachable from anyone's browser but this container.
+ENV NEXT_PUBLIC_API_BASE_URL=""
+
 RUN npm run build --workspace=packages/shared \
  && npm run build --workspace=apps/web
 
