@@ -53,7 +53,7 @@ COPY apps/web ./apps/web
 # requires (see server.js's header comment). Leaving this unset was a real
 # bug: the bundle silently fell back to localhost:4000, which is
 # unreachable from anyone's browser but this container.
-ENV NEXT_PUBLIC_API_BASE_URL=""
+ENV NEXT_PUBLIC_API_BASE_URL="/api/v1"
 
 RUN npm run build --workspace=packages/shared \
  && npm run build --workspace=apps/web
